@@ -10,6 +10,7 @@
     <string name="not_granted">Chưa có quyền vẽ trên ứng dụng khác.</string>
     <string name="granted">Đã có quyền vẽ trên ứng dụng khác.</string>
     <string name="floating_click">Bạn vừa chạm nút nổi.</string>
+    <string name="freeze_label">freeze</string>
     <string name="overlay_permission_missing">Vui lòng cấp quyền “Hiển thị trên các ứng dụng khác” để dùng nút nổi.</string>
     <string name="notification_channel_name">Dịch vụ nút nổi</string>
     <string name="notification_title">NutNoi đang chạy</string>

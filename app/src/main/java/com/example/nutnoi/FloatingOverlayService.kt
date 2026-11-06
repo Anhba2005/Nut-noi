@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -16,7 +15,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
-import android.widget.Toast
+import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
 
@@ -24,12 +23,13 @@ class FloatingOverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
-    private var overlayParams: WindowManager.LayoutParams? = null
     private var downX = 0f
     private var downY = 0f
     private var startX = 0
     private var startY = 0
     private var isDragging = false
+    // Start red so the first tap changes the button to blue.
+    private var isBlue = false
     private val touchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -51,6 +51,9 @@ class FloatingOverlayService : Service() {
     private fun showOverlay() {
         windowManager = getSystemService(WindowManager::class.java)
         val view = LayoutInflater.from(this).inflate(R.layout.floating_button, null)
+        val label = view.findViewById<TextView>(R.id.floatingLabel)
+        label.setBackgroundResource(R.drawable.floating_button_red)
+
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
@@ -69,7 +72,6 @@ class FloatingOverlayService : Service() {
             y = getPreferences().getInt(PREF_Y, 180)
         }
         overlayView = view
-        overlayParams = layoutParams
         windowManager.addView(view, layoutParams)
 
         view.setOnTouchListener { _, event ->
@@ -100,7 +102,11 @@ class FloatingOverlayService : Service() {
                             .putInt(PREF_Y, layoutParams.y)
                             .apply()
                     } else {
-                        Toast.makeText(this, R.string.floating_click, Toast.LENGTH_SHORT).show()
+                        isBlue = !isBlue
+                        label.setBackgroundResource(
+                            if (isBlue) R.drawable.floating_button_blue
+                            else R.drawable.floating_button_red
+                        )
                     }
                     true
                 }
@@ -143,7 +149,6 @@ class FloatingOverlayService : Service() {
             runCatching { windowManager.removeView(view) }
         }
         overlayView = null
-        overlayParams = null
         isRunning = false
         super.onDestroy()
     }
