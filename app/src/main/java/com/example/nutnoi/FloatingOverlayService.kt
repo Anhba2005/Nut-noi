@@ -24,6 +24,7 @@ class FloatingOverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
+    private var overlayLayoutParams: WindowManager.LayoutParams? = null
     private var downX = 0f
     private var downY = 0f
     private var startX = 0
@@ -37,6 +38,13 @@ class FloatingOverlayService : Service() {
         if (intent?.action == ACTION_STOP) {
             stopSelf()
             return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_UPDATE_SIZE) {
+            val sizeDp = (intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp()))
+                .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
+            getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
+            updateOverlaySize(sizeDp)
+            return START_STICKY
         }
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
@@ -61,9 +69,10 @@ class FloatingOverlayService : Service() {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
+        val sizePx = dpToPx(readSizeDp())
         val layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            sizePx,
+            sizePx,
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
@@ -72,6 +81,7 @@ class FloatingOverlayService : Service() {
             x = getPreferences().getInt(PREF_X, 24)
             y = getPreferences().getInt(PREF_Y, 180)
         }
+        overlayLayoutParams = layoutParams
         overlayView = view
         windowManager.addView(view, layoutParams)
 
@@ -117,6 +127,22 @@ class FloatingOverlayService : Service() {
         }
     }
 
+    private fun updateOverlaySize(sizeDp: Int) {
+        val view = overlayView ?: return
+        val params = overlayLayoutParams ?: return
+        val sizePx = dpToPx(sizeDp)
+        params.width = sizePx
+        params.height = sizePx
+        windowManager.updateViewLayout(view, params)
+    }
+
+    private fun readSizeDp(): Int = getPreferences()
+        .getInt(PREF_SIZE_DP, DEFAULT_SIZE_DP)
+        .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
+
+    private fun dpToPx(sizeDp: Int): Int =
+        (sizeDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+
     private fun createNotification(): Notification {
         val channelId = "nutnoi_overlay_service"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -150,6 +176,7 @@ class FloatingOverlayService : Service() {
             runCatching { windowManager.removeView(view) }
         }
         overlayView = null
+        overlayLayoutParams = null
         isRunning = false
         super.onDestroy()
     }
@@ -158,8 +185,14 @@ class FloatingOverlayService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.example.nutnoi.action.STOP_OVERLAY"
+        const val ACTION_UPDATE_SIZE = "com.example.nutnoi.action.UPDATE_OVERLAY_SIZE"
+        const val EXTRA_SIZE_DP = "overlay_size_dp"
+        const val PREFERENCES = "overlay_position"
+        const val PREF_SIZE_DP = "size_dp"
+        const val DEFAULT_SIZE_DP = 72
+        const val MIN_SIZE_DP = 48
+        const val MAX_SIZE_DP = 144
         private const val NOTIFICATION_ID = 101
-        private const val PREFERENCES = "overlay_position"
         private const val PREF_X = "x"
         private const val PREF_Y = "y"
 

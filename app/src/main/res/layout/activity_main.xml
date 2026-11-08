@@ -30,6 +30,24 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/enable_button"
-        android:textAllCaps="false" />
+        android:textAllCaps="false"
+        android:layout_marginBottom="28dp" />
+
+    <TextView
+        android:id="@+id/sizeLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/sizeSeekBar"
+        android:text="@string/overlay_size_value_default"
+        android:textColor="#1F2937"
+        android:textSize="16sp"
+        android:paddingBottom="8dp" />
+
+    <SeekBar
+        android:id="@+id/sizeSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="96"
+        android:contentDescription="@string/overlay_size_label" />
 
 </LinearLayout>

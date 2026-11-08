@@ -5,16 +5,20 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var permissionStatus: TextView
     private lateinit var requestPermissionButton: Button
     private lateinit var toggleOverlayButton: Button
+    private lateinit var sizeLabel: TextView
+    private lateinit var sizeSeekBar: SeekBar
 
     private val overlayPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -29,6 +33,31 @@ class MainActivity : AppCompatActivity() {
         permissionStatus = findViewById(R.id.permissionStatus)
         requestPermissionButton = findViewById(R.id.requestPermissionButton)
         toggleOverlayButton = findViewById(R.id.toggleOverlayButton)
+        sizeLabel = findViewById(R.id.sizeLabel)
+        sizeSeekBar = findViewById(R.id.sizeSeekBar)
+
+        val savedSize = getOverlayPreferences().getInt(
+            FloatingOverlayService.PREF_SIZE_DP,
+            FloatingOverlayService.DEFAULT_SIZE_DP
+        )
+        sizeSeekBar.progress = savedSize - FloatingOverlayService.MIN_SIZE_DP
+        updateSizeLabel(savedSize)
+
+        sizeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                val sizeDp = FloatingOverlayService.MIN_SIZE_DP + progress
+                updateSizeLabel(sizeDp)
+                if (fromUser) {
+                    getOverlayPreferences().edit()
+                        .putInt(FloatingOverlayService.PREF_SIZE_DP, sizeDp)
+                        .apply()
+                    updateRunningOverlaySize(sizeDp)
+                }
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+        })
 
         requestPermissionButton.setOnClickListener {
             if (hasOverlayPermission()) {
@@ -47,7 +76,7 @@ class MainActivity : AppCompatActivity() {
                 requestOverlayPermission()
             } else {
                 val serviceIntent = Intent(this, FloatingOverlayService::class.java)
-                androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
+                ContextCompat.startForegroundService(this, serviceIntent)
                 updateUi()
             }
         }
@@ -69,6 +98,21 @@ class MainActivity : AppCompatActivity() {
         )
         overlayPermissionLauncher.launch(intent)
     }
+
+    private fun updateRunningOverlaySize(sizeDp: Int) {
+        if (!FloatingOverlayService.isRunning) return
+        val intent = Intent(this, FloatingOverlayService::class.java)
+            .setAction(FloatingOverlayService.ACTION_UPDATE_SIZE)
+            .putExtra(FloatingOverlayService.EXTRA_SIZE_DP, sizeDp)
+        startService(intent)
+    }
+
+    private fun updateSizeLabel(sizeDp: Int) {
+        sizeLabel.text = getString(R.string.overlay_size_value, sizeDp)
+    }
+
+    private fun getOverlayPreferences() =
+        getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
 
     private fun updateUi() {
         val permitted = hasOverlayPermission()
