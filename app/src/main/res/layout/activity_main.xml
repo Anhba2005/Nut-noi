@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="#F5F7FA">
+
+    <TextView
+        android:id="@+id/permissionStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/not_granted"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#1F2937"
+        android:paddingBottom="24dp" />
+
+    <Button
+        android:id="@+id/requestPermissionButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/request_permission"
+        android:textAllCaps="false"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/toggleOverlayButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/enable_button"
+        android:textAllCaps="false" />
+
+</LinearLayout>
