@@ -8,7 +8,9 @@ import android.app.Service
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -17,12 +19,14 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
 
 class FloatingOverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var overlayView: View? = null
     private var overlayLayoutParams: WindowManager.LayoutParams? = null
     private var downX = 0f
@@ -30,9 +34,25 @@ class FloatingOverlayService : Service() {
     private var startX = 0
     private var startY = 0
     private var isDragging = false
+    private var holdTriggered = false
+    private var isLocked = false
     // Start red so the first tap changes the button to blue.
     private var isBlue = false
     private val touchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
+
+    private val longPressRunnable = Runnable {
+        holdTriggered = true
+        isLocked = !isLocked
+        getPreferences().edit().putBoolean(PREF_LOCKED, isLocked).apply()
+        overlayView?.contentDescription = getString(
+            if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked
+        )
+        Toast.makeText(
+            this,
+            getString(if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
@@ -40,7 +60,7 @@ class FloatingOverlayService : Service() {
             return START_NOT_STICKY
         }
         if (intent?.action == ACTION_UPDATE_SIZE) {
-            val sizeDp = (intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp()))
+            val sizeDp = intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp())
                 .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
             getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
             updateOverlaySize(sizeDp)
@@ -62,6 +82,10 @@ class FloatingOverlayService : Service() {
         val view = LayoutInflater.from(this).inflate(R.layout.floating_button, null)
         val label = view.findViewById<TextView>(R.id.floatingLabel)
         label.setBackgroundResource(R.drawable.floating_button_red)
+        isLocked = getPreferences().getBoolean(PREF_LOCKED, false)
+        view.contentDescription = getString(
+            if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked
+        )
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -93,13 +117,19 @@ class FloatingOverlayService : Service() {
                     startX = layoutParams.x
                     startY = layoutParams.y
                     isDragging = false
+                    holdTriggered = false
+                    mainHandler.removeCallbacks(longPressRunnable)
+                    mainHandler.postDelayed(longPressRunnable, LONG_PRESS_MS)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (event.rawX - downX).toInt()
                     val dy = (event.rawY - downY).toInt()
-                    if (abs(dx) > touchSlop || abs(dy) > touchSlop) isDragging = true
-                    if (isDragging) {
+                    if (!isLocked && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
+                        mainHandler.removeCallbacks(longPressRunnable)
+                        isDragging = true
+                    }
+                    if (isDragging && !isLocked) {
                         layoutParams.x = (startX + dx).coerceAtLeast(0)
                         layoutParams.y = (startY + dy).coerceAtLeast(0)
                         windowManager.updateViewLayout(view, layoutParams)
@@ -107,12 +137,15 @@ class FloatingOverlayService : Service() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (isDragging) {
+                    mainHandler.removeCallbacks(longPressRunnable)
+                    if (holdTriggered) {
+                        // A long press toggled the move lock; do not treat release as a tap.
+                    } else if (isDragging && !isLocked) {
                         getPreferences().edit()
                             .putInt(PREF_X, layoutParams.x)
                             .putInt(PREF_Y, layoutParams.y)
                             .apply()
-                    } else {
+                    } else if (!isDragging) {
                         isBlue = !isBlue
                         label.setBackgroundResource(
                             if (isBlue) R.drawable.floating_button_blue
@@ -121,7 +154,10 @@ class FloatingOverlayService : Service() {
                     }
                     true
                 }
-                MotionEvent.ACTION_CANCEL -> true
+                MotionEvent.ACTION_CANCEL -> {
+                    mainHandler.removeCallbacks(longPressRunnable)
+                    true
+                }
                 else -> false
             }
         }
@@ -172,6 +208,7 @@ class FloatingOverlayService : Service() {
     private fun getPreferences() = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(longPressRunnable)
         overlayView?.let { view ->
             runCatching { windowManager.removeView(view) }
         }
@@ -195,6 +232,8 @@ class FloatingOverlayService : Service() {
         private const val NOTIFICATION_ID = 101
         private const val PREF_X = "x"
         private const val PREF_Y = "y"
+        private const val PREF_LOCKED = "locked"
+        private const val LONG_PRESS_MS = 2_000L
 
         @Volatile
         var isRunning: Boolean = false
