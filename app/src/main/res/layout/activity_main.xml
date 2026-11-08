@@ -1,53 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://android.com"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center"
-    android:background="#F5F7FA">
+    android:padding="16dp"
+    android:gravity="center_horizontal">
 
     <TextView
-        android:id="@+id/permissionStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/not_granted"
+        android:text="Quản trị Hệ thống"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:textColor="#1F2937"
-        android:paddingBottom="24dp" />
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/editTextShell1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Lệnh 1 (Khi nút màu XANH)"
+        android:text="echo 'Xanh'"
+        android:inputType="text"
+        android:layout_marginBottom="8dp"/>
+
+    <EditText
+        android:id="@+id/editTextShell2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Lệnh 2 (Khi nút màu ĐỎ)"
+        android:text="echo 'Do'"
+        android:inputType="text"
+        android:layout_marginBottom="8dp"/>
+
+    <CheckBox
+        android:id="@+id/checkBoxNeedRoot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chế độ quản trị cao cấp (su)"
+        android:checked="false"
+        android:layout_marginBottom="16dp"/>
 
     <Button
-        android:id="@+id/requestPermissionButton"
-        android:layout_width="match_parent"
+        android:id="@+id/btnToggleOverlay"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/request_permission"
-        android:textAllCaps="false"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/toggleOverlayButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/enable_button"
-        android:textAllCaps="false"
-        android:layout_marginBottom="28dp" />
-
-    <TextView
-        android:id="@+id/sizeLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:labelFor="@id/sizeSeekBar"
-        android:text="@string/overlay_size_value_default"
-        android:textColor="#1F2937"
-        android:textSize="16sp"
-        android:paddingBottom="8dp" />
-
-    <SeekBar
-        android:id="@+id/sizeSeekBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:max="96"
-        android:contentDescription="@string/overlay_size_label" />
-
+        android:text="Bật nút nổi"/>
 </LinearLayout>
