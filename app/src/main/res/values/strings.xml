@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NutNoi</string>
-    <string name="overlay_title">Nút nổi</string>
-    <string name="overlay_description">Nút nổi đang hoạt động trên màn hình.</string>
     <string name="request_permission">Cấp quyền overlay</string>
     <string name="permission_granted_button">Đã cấp quyền</string>
     <string name="enable_button">Bật nút nổi</string>
     <string name="disable_button">Tắt nút nổi</string>
     <string name="not_granted">Chưa có quyền vẽ trên ứng dụng khác.</string>
     <string name="granted">Đã có quyền vẽ trên ứng dụng khác.</string>
-    <string name="floating_click">Bạn vừa chạm nút nổi.</string>
     <string name="freeze_label">freeze</string>
     <string name="overlay_permission_missing">Vui lòng cấp quyền “Hiển thị trên các ứng dụng khác” để dùng nút nổi.</string>
     <string name="notification_channel_name">Dịch vụ nút nổi</string>
@@ -17,5 +14,4 @@
     <string name="notification_text">Chạm “Tắt nút nổi” để dừng.</string>
     <string name="overlay_size_label">Kích thước nút nổi</string>
     <string name="overlay_size_value">Kích thước nút nổi: %1$d dp</string>
-    <string name="overlay_size_value_default">Kích thước nút nổi: 72 dp</string>
 </resources>
