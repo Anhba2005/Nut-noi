@@ -14,4 +14,5 @@
     <string name="notification_text">Chạm “Tắt nút nổi” để dừng.</string>
     <string name="overlay_size_label">Kích thước nút nổi</string>
     <string name="overlay_size_value">Kích thước nút nổi: %1$d dp</string>
+    <string name="overlay_size_value_default">Kích thước nút nổi: 72 dp</string>
 </resources>
