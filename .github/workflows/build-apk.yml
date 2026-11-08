@@ -29,10 +29,16 @@ jobs:
             platforms;android-34
             build-tools;34.0.0
 
-      - name: Set up Gradle
+      - name: Install Gradle 8.7
+        run: |
+          curl --fail --location --silent --show-error \
+            https://services.gradle.org/distributions/gradle-8.7-bin.zip \
+            --output "$RUNNER_TEMP/gradle-8.7-bin.zip"
+          unzip -q "$RUNNER_TEMP/gradle-8.7-bin.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-8.7/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Gradle caching
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
 
       - name: Build debug APK
         run: gradle assembleDebug
