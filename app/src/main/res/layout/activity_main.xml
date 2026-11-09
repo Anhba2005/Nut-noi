@@ -1,24 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center"
+    android:fillViewport="true"
     android:background="#F5F7FA">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/firewall_description"
-        android:textColor="#1F2937"
-        android:textSize="16sp"
-        android:layout_marginBottom="24dp" />
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_vertical">
 
-    <Button
-        android:id="@+id/btnToggleOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/enable_button"
-        android:textAllCaps="false" />
-</LinearLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/firewall_description"
+            android:textColor="#1F2937"
+            android:textSize="16sp"
+            android:layout_marginBottom="24dp" />
+
+        <Button
+            android:id="@+id/btnToggleOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/enable_button"
+            android:textAllCaps="false"
+            android:layout_marginBottom="28dp" />
+
+        <TextView
+            android:id="@+id/overlaySizeLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:labelFor="@id/overlaySizeSeekBar"
+            android:text="@string/overlay_size_value_default"
+            android:textColor="#1F2937"
+            android:textSize="16sp"
+            android:paddingBottom="8dp" />
+
+        <SeekBar
+            android:id="@+id/overlaySizeSeekBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/overlay_size_label" />
+    </LinearLayout>
+</ScrollView>
