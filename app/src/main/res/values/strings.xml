@@ -17,7 +17,7 @@
     <string name="overlay_size_value_default">Kích thước nút nổi: 72 dp</string>
     <string name="overlay_locked">Đã khóa nút nổi, không thể di chuyển.</string>
     <string name="overlay_unlocked">Đã mở khóa nút nổi, có thể di chuyển.</string>
-    <string name="firewall_description">Nút xanh chặn lưu lượng đến qua dữ liệu di động (ccmni+) và Wi‑Fi (wlan0). Nút đỏ gỡ các luật tương ứng. Cần cấp quyền root; thao tác có thể làm gián đoạn kết nối mạng trên thiết bị này.</string>
     <string name="firewall_root_denied">Không có quyền root hoặc không thể áp dụng luật tường lửa.</string>
     <string name="firewall_updated">Đã cập nhật luật tường lửa.</string>
+    <string name="greeting">Chào Anh Ba</string>
 </resources>
