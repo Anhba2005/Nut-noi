@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -21,12 +22,18 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import java.io.BufferedWriter
+import java.io.OutputStreamWriter
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 class FloatingOverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val commandExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private var overlayView: View? = null
     private var overlayLayoutParams: WindowManager.LayoutParams? = null
     private var downX = 0f
@@ -36,7 +43,6 @@ class FloatingOverlayService : Service() {
     private var isDragging = false
     private var holdTriggered = false
     private var isLocked = false
-    // Start red so the first tap changes the button to blue.
     private var isBlue = false
     private val touchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
 
@@ -81,8 +87,8 @@ class FloatingOverlayService : Service() {
         windowManager = getSystemService(WindowManager::class.java)
         val view = LayoutInflater.from(this).inflate(R.layout.floating_button, null)
         val label = view.findViewById<TextView>(R.id.floatingLabel)
-        label.setBackgroundResource(R.drawable.floating_button_red)
         isLocked = getPreferences().getBoolean(PREF_LOCKED, false)
+        label.setBackgroundResource(if (isBlue) R.drawable.floating_button_blue else R.drawable.floating_button_red)
         view.contentDescription = getString(
             if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked
         )
@@ -139,7 +145,7 @@ class FloatingOverlayService : Service() {
                 MotionEvent.ACTION_UP -> {
                     mainHandler.removeCallbacks(longPressRunnable)
                     if (holdTriggered) {
-                        // A long press toggled the move lock; do not treat release as a tap.
+                        // Long press toggled move lock; do not treat release as a tap.
                     } else if (isDragging && !isLocked) {
                         getPreferences().edit()
                             .putInt(PREF_X, layoutParams.x)
@@ -151,6 +157,12 @@ class FloatingOverlayService : Service() {
                             if (isBlue) R.drawable.floating_button_blue
                             else R.drawable.floating_button_red
                         )
+                        val commands = if (isBlue) {
+                            listOf(Config.BLOCK_IPV4, Config.BLOCK_IPV6)
+                        } else {
+                            listOf(Config.UNBLOCK_IPV4, Config.UNBLOCK_IPV6)
+                        }
+                        commandExecutor.execute { applyFirewallRules(commands) }
                     }
                     true
                 }
@@ -160,6 +172,50 @@ class FloatingOverlayService : Service() {
                 }
                 else -> false
             }
+        }
+    }
+
+    /** Runs only the fixed firewall rules in Config; arbitrary user-entered shell text is never accepted. */
+    private fun applyFirewallRules(commands: List<String>) {
+        var process: Process? = null
+        try {
+            process = ProcessBuilder("su")
+                .redirectErrorStream(true)
+                .start()
+            BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
+                commands.forEach { command ->
+                    writer.write(command)
+                    writer.newLine()
+                }
+                writer.write("exit")
+                writer.newLine()
+                writer.flush()
+            }
+
+            if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+                showFirewallResult(false)
+                return
+            }
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            val success = process.exitValue() == 0
+            if (!success) Log.e(TAG, "Firewall command failed: $output")
+            showFirewallResult(success)
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not apply firewall rules", e)
+            process?.destroyForcibly()
+            showFirewallResult(false)
+        }
+    }
+
+    private fun showFirewallResult(success: Boolean) {
+        mainHandler.post {
+            if (!isRunning) return@post
+            Toast.makeText(
+                this,
+                getString(if (success) R.string.firewall_updated else R.string.firewall_root_denied),
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -209,12 +265,19 @@ class FloatingOverlayService : Service() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(longPressRunnable)
+        // If the block state is active, attempt cleanup when the service is stopped normally.
+        if (isBlue) {
+            commandExecutor.execute {
+                applyFirewallRules(listOf(Config.UNBLOCK_IPV4, Config.UNBLOCK_IPV6))
+            }
+        }
         overlayView?.let { view ->
             runCatching { windowManager.removeView(view) }
         }
         overlayView = null
         overlayLayoutParams = null
         isRunning = false
+        commandExecutor.shutdown()
         super.onDestroy()
     }
 
@@ -234,6 +297,8 @@ class FloatingOverlayService : Service() {
         private const val PREF_Y = "y"
         private const val PREF_LOCKED = "locked"
         private const val LONG_PRESS_MS = 2_000L
+        private const val ROOT_TIMEOUT_SECONDS = 15L
+        private const val TAG = "FloatingOverlayService"
 
         @Volatile
         var isRunning: Boolean = false

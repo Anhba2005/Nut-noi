@@ -1,48 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://android.com"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:gravity="center_horizontal">
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="#F5F7FA">
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Quản trị Hệ thống"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
-
-    <EditText
-        android:id="@+id/editTextShell1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Lệnh 1 (Khi nút màu XANH)"
-        android:text="echo 'Xanh'"
-        android:inputType="text"
-        android:layout_marginBottom="8dp"/>
-
-    <EditText
-        android:id="@+id/editTextShell2"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Lệnh 2 (Khi nút màu ĐỎ)"
-        android:text="echo 'Do'"
-        android:inputType="text"
-        android:layout_marginBottom="8dp"/>
-
-    <CheckBox
-        android:id="@+id/checkBoxNeedRoot"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Chế độ quản trị cao cấp (su)"
-        android:checked="false"
-        android:layout_marginBottom="16dp"/>
+        android:text="@string/firewall_description"
+        android:textColor="#1F2937"
+        android:textSize="16sp"
+        android:layout_marginBottom="24dp" />
 
     <Button
         android:id="@+id/btnToggleOverlay"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Bật nút nổi"/>
+        android:text="@string/enable_button"
+        android:textAllCaps="false" />
 </LinearLayout>

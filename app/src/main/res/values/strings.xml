@@ -11,10 +11,13 @@
     <string name="overlay_permission_missing">Vui lòng cấp quyền “Hiển thị trên các ứng dụng khác” để dùng nút nổi.</string>
     <string name="notification_channel_name">Dịch vụ nút nổi</string>
     <string name="notification_title">NutNoi đang chạy</string>
-    <string name="notification_text">Chạm “Tắt nút nổi” để dừng.</string>
+    <string name="notification_text">Chạm “Tắt nút nổi” để dừng và gỡ luật tường lửa.</string>
     <string name="overlay_size_label">Kích thước nút nổi</string>
     <string name="overlay_size_value">Kích thước nút nổi: %1$d dp</string>
     <string name="overlay_size_value_default">Kích thước nút nổi: 72 dp</string>
     <string name="overlay_locked">Đã khóa nút nổi, không thể di chuyển.</string>
     <string name="overlay_unlocked">Đã mở khóa nút nổi, có thể di chuyển.</string>
+    <string name="firewall_description">Nút nổi màu xanh sẽ chặn lưu lượng đến qua giao diện di động (IPv4/IPv6). Màu đỏ sẽ gỡ các luật khớp. Cần cấp quyền root; thao tác này có thể làm gián đoạn kết nối mạng.</string>
+    <string name="firewall_root_denied">Không có quyền root hoặc không thể áp dụng luật tường lửa.</string>
+    <string name="firewall_updated">Đã cập nhật luật tường lửa.</string>
 </resources>

@@ -5,9 +5,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
-import android.widget.CheckBox
-import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
@@ -15,42 +14,36 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val etShell1 = findViewById<EditText>(R.id.editTextShell1)
-        val etShell2 = findViewById<EditText>(R.id.editTextShell2)
-        val cbRoot = findViewById<CheckBox>(R.id.checkBoxNeedRoot)
-        val btnToggle = findViewById<Button>(R.id.btnToggleOverlay)
-
-        btnToggle.setOnClickListener {
+        val toggleButton = findViewById<Button>(R.id.btnToggleOverlay)
+        toggleButton.setOnClickListener {
             if (!Settings.canDrawOverlays(this)) {
-                val intent = Intent(
+                val permissionIntent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName")
                 )
-                startActivity(intent)
-            } else {
-                Config.cmd1 = etShell1.text.toString()
-                Config.cmd2 = etShell2.text.toString()
-                Config.isSuRequired = cbRoot.isChecked
-
-                val serviceIntent = Intent(this, FloatingOverlayService::class.java)
-                if (FloatingOverlayService.isRunning) {
-                    stopService(serviceIntent)
-                    btnToggle.text = "Bật nút nổi"
-                } else {
-                    startService(serviceIntent)
-                    btnToggle.text = "Tắt nút nổi"
-                }
+                startActivity(permissionIntent)
+                return@setOnClickListener
             }
+
+            val serviceIntent = Intent(this, FloatingOverlayService::class.java)
+            if (FloatingOverlayService.isRunning) {
+                stopService(serviceIntent)
+            } else {
+                ContextCompat.startForegroundService(this, serviceIntent)
+            }
+            updateToggleButton(toggleButton)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        val btnToggle = findViewById<Button>(R.id.btnToggleOverlay)
-        if (FloatingOverlayService.isRunning) {
-            btnToggle.text = "Tắt nút nổi"
-        } else {
-            btnToggle.text = "Bật nút nổi"
-        }
+        findViewById<Button>(R.id.btnToggleOverlay)?.let(::updateToggleButton)
+    }
+
+    private fun updateToggleButton(button: Button) {
+        button.setText(
+            if (FloatingOverlayService.isRunning) R.string.disable_button
+            else R.string.enable_button
+        )
     }
 }
