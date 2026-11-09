@@ -50,14 +50,9 @@ class FloatingOverlayService : Service() {
         holdTriggered = true
         isLocked = !isLocked
         getPreferences().edit().putBoolean(PREF_LOCKED, isLocked).apply()
-        overlayView?.contentDescription = getString(
-            if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked
-        )
-        Toast.makeText(
-            this,
-            getString(if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked),
-            Toast.LENGTH_SHORT
-        ).show()
+        val message = getString(if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked)
+        overlayView?.contentDescription = message
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -158,9 +153,17 @@ class FloatingOverlayService : Service() {
                             else R.drawable.floating_button_red
                         )
                         val commands = if (isBlue) {
-                            listOf(Config.BLOCK_IPV4, Config.BLOCK_IPV6)
+                            listOf(
+                                Config.BLOCK_MOBILE_IPV4,
+                                Config.BLOCK_MOBILE_IPV6,
+                                Config.BLOCK_WIFI_IPV4
+                            )
                         } else {
-                            listOf(Config.UNBLOCK_IPV4, Config.UNBLOCK_IPV6)
+                            listOf(
+                                Config.UNBLOCK_MOBILE_IPV4,
+                                Config.UNBLOCK_MOBILE_IPV6,
+                                Config.UNBLOCK_WIFI_IPV4
+                            )
                         }
                         commandExecutor.execute { applyFirewallRules(commands) }
                     }
@@ -175,7 +178,7 @@ class FloatingOverlayService : Service() {
         }
     }
 
-    /** Runs only the fixed firewall rules in Config; arbitrary user-entered shell text is never accepted. */
+    /** Applies only the fixed firewall rules bundled with the app. */
     private fun applyFirewallRules(commands: List<String>) {
         var process: Process? = null
         try {
@@ -265,10 +268,15 @@ class FloatingOverlayService : Service() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(longPressRunnable)
-        // If the block state is active, attempt cleanup when the service is stopped normally.
         if (isBlue) {
             commandExecutor.execute {
-                applyFirewallRules(listOf(Config.UNBLOCK_IPV4, Config.UNBLOCK_IPV6))
+                applyFirewallRules(
+                    listOf(
+                        Config.UNBLOCK_MOBILE_IPV4,
+                        Config.UNBLOCK_MOBILE_IPV6,
+                        Config.UNBLOCK_WIFI_IPV4
+                    )
+                )
             }
         }
         overlayView?.let { view ->
