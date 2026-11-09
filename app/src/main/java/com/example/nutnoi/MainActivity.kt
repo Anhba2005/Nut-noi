@@ -9,12 +9,17 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var toggleButton: Button
     private lateinit var sizeLabel: TextView
     private lateinit var sizeSeekBar: SeekBar
+    private lateinit var rootStatus: TextView
+    private val rootCheckExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,6 +28,7 @@ class MainActivity : AppCompatActivity() {
         toggleButton = findViewById(R.id.btnToggleOverlay)
         sizeLabel = findViewById(R.id.overlaySizeLabel)
         sizeSeekBar = findViewById(R.id.overlaySizeSeekBar)
+        rootStatus = findViewById(R.id.rootStatus)
 
         toggleButton.setOnClickListener {
             if (!Settings.canDrawOverlays(this)) {
@@ -77,6 +83,37 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (::toggleButton.isInitialized) updateToggleButton()
+        if (::rootStatus.isInitialized) checkRootStatus()
+    }
+
+    private fun checkRootStatus() {
+        rootStatus.setText(R.string.root_status_checking)
+        rootCheckExecutor.execute {
+            val hasRoot = try {
+                val process = ProcessBuilder("su", "-c", "id")
+                    .redirectErrorStream(true)
+                    .start()
+                val finished = process.waitFor(ROOT_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                if (!finished) {
+                    process.destroyForcibly()
+                    false
+                } else {
+                    val output = process.inputStream.bufferedReader().use { it.readText() }
+                    process.exitValue() == 0 && output.contains("uid=0")
+                }
+            } catch (_: Exception) {
+                false
+            }
+
+            runOnUiThread {
+                if (!isFinishing && ::rootStatus.isInitialized) {
+                    rootStatus.setText(
+                        if (hasRoot) R.string.root_status_available
+                        else R.string.root_status_unavailable
+                    )
+                }
+            }
+        }
     }
 
     private fun updateToggleButton() {
@@ -88,5 +125,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateSizeLabel(sizeDp: Int) {
         sizeLabel.text = getString(R.string.overlay_size_value, sizeDp)
+    }
+
+    override fun onDestroy() {
+        rootCheckExecutor.shutdownNow()
+        super.onDestroy()
+    }
+
+    companion object {
+        private const val ROOT_CHECK_TIMEOUT_SECONDS = 5L
     }
 }

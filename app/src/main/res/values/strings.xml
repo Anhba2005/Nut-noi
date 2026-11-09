@@ -20,4 +20,7 @@
     <string name="firewall_root_denied">Không có quyền root hoặc không thể áp dụng luật tường lửa.</string>
     <string name="firewall_updated">Đã cập nhật luật tường lửa.</string>
     <string name="greeting">Chào Anh Ba</string>
+    <string name="root_status_checking">Đang kiểm tra quyền root…</string>
+    <string name="root_status_available">Trạng thái root: Đã cấp quyền.</string>
+    <string name="root_status_unavailable">Trạng thái root: Chưa có quyền hoặc thiết bị chưa root.</string>
 </resources>

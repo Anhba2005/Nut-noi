@@ -51,8 +51,11 @@ class FloatingOverlayService : Service() {
         isLocked = !isLocked
         getPreferences().edit().putBoolean(PREF_LOCKED, isLocked).apply()
         val message = getString(if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked)
-        overlayView?.contentDescription = message
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        overlayView?.let { view ->
+            view.contentDescription = message
+            view.announceForAccessibility(message)
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

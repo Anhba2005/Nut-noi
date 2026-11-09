@@ -21,6 +21,16 @@
             android:textStyle="bold"
             android:layout_marginBottom="20dp" />
 
+        <TextView
+            android:id="@+id/rootStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/root_status_checking"
+            android:textColor="#1F2937"
+            android:textSize="16sp"
+            android:paddingBottom="20dp"
+            android:accessibilityLiveRegion="polite" />
+
         <Button
             android:id="@+id/btnToggleOverlay"
             android:layout_width="match_parent"
