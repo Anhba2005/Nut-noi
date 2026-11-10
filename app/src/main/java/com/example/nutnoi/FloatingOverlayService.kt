@@ -193,7 +193,7 @@ class FloatingOverlayService : Service() {
                         writer.write("$command || status=1")
                         writer.newLine()
                     }
-                    writer.write("exit $status"); writer.newLine(); writer.flush()
+                    writer.write("exit \$status"); writer.newLine(); writer.flush()
                 }
                 if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                     process.destroyForcibly()
