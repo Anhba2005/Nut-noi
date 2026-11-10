@@ -1,12 +1,16 @@
 package com.example.nutnoi
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import java.util.concurrent.ExecutorService
@@ -16,6 +20,8 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private lateinit var toggleButton: Button
+    private lateinit var chooseAppButton: Button
+    private lateinit var selectedAppLabel: TextView
     private lateinit var sizeLabel: TextView
     private lateinit var sizeSeekBar: SeekBar
     private lateinit var rootStatus: TextView
@@ -26,6 +32,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         toggleButton = findViewById(R.id.btnToggleOverlay)
+        chooseAppButton = findViewById(R.id.btnChooseApp)
+        selectedAppLabel = findViewById(R.id.selectedAppLabel)
         sizeLabel = findViewById(R.id.overlaySizeLabel)
         sizeSeekBar = findViewById(R.id.overlaySizeSeekBar)
         rootStatus = findViewById(R.id.rootStatus)
@@ -48,6 +56,8 @@ class MainActivity : AppCompatActivity() {
             }
             updateToggleButton()
         }
+
+        chooseAppButton.setOnClickListener { showAppPicker() }
 
         val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
         val initialSize = prefs.getInt(
@@ -77,6 +87,7 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
         })
 
+        updateSelectedAppLabel()
         updateToggleButton()
     }
 
@@ -84,6 +95,77 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (::toggleButton.isInitialized) updateToggleButton()
         if (::rootStatus.isInitialized) checkRootStatus()
+    }
+
+    private fun showAppPicker() {
+        val apps = getLaunchableApps()
+        if (apps.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setMessage(R.string.no_apps_found)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
+        val names = apps.map { "${it.label} (${it.packageName})" }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_app_title)
+            .setItems(names) { _, which ->
+                val selected = apps[which]
+                getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
+                    .edit()
+                    .putString(FloatingOverlayService.PREF_SELECTED_PACKAGE, selected.packageName)
+                    .apply()
+                updateSelectedAppLabel()
+                if (FloatingOverlayService.isRunning) {
+                    startService(
+                        Intent(this, FloatingOverlayService::class.java)
+                            .setAction(FloatingOverlayService.ACTION_SELECT_APP)
+                    )
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun getLaunchableApps(): List<AppChoice> {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val resolved: List<ResolveInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.queryIntentActivities(
+                launcherIntent,
+                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_ALL.toLong())
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL)
+        }
+        return resolved.mapNotNull { item ->
+            val info = item.activityInfo?.applicationInfo ?: return@mapNotNull null
+            if (info.packageName == packageName || info.uid < 0) return@mapNotNull null
+            AppChoice(
+                label = packageManager.getApplicationLabel(info).toString(),
+                packageName = info.packageName
+            )
+        }.distinctBy { it.packageName }
+            .sortedBy { it.label.lowercase() }
+    }
+
+    private fun updateSelectedAppLabel() {
+        val selectedPackage = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
+            .getString(FloatingOverlayService.PREF_SELECTED_PACKAGE, null)
+        val appLabel = selectedPackage?.let { packageName ->
+            try {
+                val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageManager.getApplicationInfo(packageName, 0)
+                }
+                packageManager.getApplicationLabel(info).toString()
+            } catch (_: PackageManager.NameNotFoundException) {
+                null
+            }
+        }
+        selectedAppLabel.text = getString(R.string.selected_app_value, appLabel ?: getString(R.string.no_app_selected))
     }
 
     private fun checkRootStatus() {
@@ -131,6 +213,8 @@ class MainActivity : AppCompatActivity() {
         rootCheckExecutor.shutdownNow()
         super.onDestroy()
     }
+
+    private data class AppChoice(val label: String, val packageName: String)
 
     companion object {
         private const val ROOT_CHECK_TIMEOUT_SECONDS = 5L

@@ -23,4 +23,10 @@
     <string name="root_status_checking">Đang kiểm tra quyền root…</string>
     <string name="root_status_available">Trạng thái root: Đã cấp quyền.</string>
     <string name="root_status_unavailable">Trạng thái root: Chưa có quyền hoặc thiết bị chưa root.</string>
+    <string name="choose_app_title">Ứng dụng bị chặn mạng</string>
+    <string name="choose_app_button">Chọn ứng dụng</string>
+    <string name="selected_app_value">Ứng dụng đã chọn: %1$s</string>
+    <string name="no_app_selected">Chưa chọn ứng dụng</string>
+    <string name="no_apps_found">Không tìm thấy ứng dụng có thể mở.</string>
+    <string name="select_app_first">Hãy chọn ứng dụng trước khi chặn mạng.</string>
 </resources>
