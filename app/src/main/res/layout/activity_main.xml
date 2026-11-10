@@ -55,7 +55,36 @@
             android:layout_height="wrap_content"
             android:text="@string/choose_app_button"
             android:textAllCaps="false"
-            android:layout_marginBottom="20dp" />
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/network_block_options"
+            android:textColor="#1F2937"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingBottom="4dp" />
+
+        <CheckBox
+            android:id="@+id/blockWifiCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/block_wifi" />
+
+        <CheckBox
+            android:id="@+id/blockMobileDataCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/block_mobile_data" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/network_block_options_hint"
+            android:textColor="#6B7280"
+            android:textSize="13sp"
+            android:paddingBottom="16dp" />
 
         <Button
             android:id="@+id/btnToggleOverlay"

@@ -16,7 +16,7 @@
     <string name="overlay_size_value">Kích thước nút nổi: %1$d dp</string>
     <string name="overlay_size_value_default">Kích thước nút nổi: 72 dp</string>
     <string name="overlay_locked">Đã khóa nút nổi, không thể di chuyển.</string>
-    <string name="overlay_unlocked">Đã mở khóa nút nổi, có thể di chuyển.</string>
+    <string name="overlay_unlocked">Đã mở khóa nút nổi, có thể di chuy��n.</string>
     <string name="firewall_root_denied">Không có quyền root hoặc không thể áp dụng luật tường lửa.</string>
     <string name="firewall_updated">Đã cập nhật luật tường lửa.</string>
     <string name="greeting">Chào Anh Ba</string>
@@ -29,4 +29,8 @@
     <string name="no_app_selected">Chưa chọn ứng dụng</string>
     <string name="no_apps_found">Không tìm thấy ứng dụng có thể mở.</string>
     <string name="select_app_first">Hãy chọn ứng dụng trước khi chặn mạng.</string>
+    <string name="network_block_options">Loại kết nối cần chặn</string>
+    <string name="block_wifi">Wi-Fi</string>
+    <string name="block_mobile_data">Dữ liệu di động (4G/5G)</string>
+    <string name="network_block_options_hint">Có thể chọn một hoặc cả hai. Bỏ chọn cả hai để không chặn kết nối nào.</string>
 </resources>
