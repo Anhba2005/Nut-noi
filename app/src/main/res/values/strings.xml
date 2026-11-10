@@ -5,7 +5,7 @@
     <string name="disable_button">Tắt nút nổi</string>
     <string name="notification_channel_name">Dịch vụ nút nổi</string>
     <string name="notification_title">NutNoi đang chạy</string>
-    <string name="notification_text">Chạm “Tắt nút nổi” để dừng và gỡ các câu lệnh đã chạy.</string>
+    <string name="notification_text">Chạm “Tắt nút nổi” để dừng và gỡ luật tường lửa.</string>
     <string name="overlay_size_label">Kích thước nút nổi</string>
     <string name="overlay_size_value">Kích thước nút nổi: %1$d dp</string>
     <string name="overlay_size_value_default">Kích thước nút nổi: 72 dp</string>
@@ -14,6 +14,7 @@
     <string name="freeze_label">freeze</string>
     <string name="firewall_root_denied">Không có quyền root hoặc lệnh thực thi không thành công.</string>
     <string name="firewall_updated">Đã thực thi chuỗi lệnh thành công.</string>
+    <string name="firewall_commands_invalid">Cấu hình lệnh firewall không hợp lệ. Hãy kiểm tra lại các lệnh.</string>
     <string name="greeting">Chào Anh Ba</string>
     <string name="root_status_checking">Đang kiểm tra quyền root…</string>
     <string name="root_status_available">Trạng thái root: Đã cấp quyền.</string>
