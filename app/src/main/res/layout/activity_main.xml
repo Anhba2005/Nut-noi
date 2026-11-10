@@ -31,14 +31,6 @@
             android:textSize="16sp"
             android:paddingBottom="16dp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/firewall_warning_short"
-            android:textColor="#B91C1C"
-            android:textSize="14sp"
-            android:paddingBottom="12dp" />
-
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
