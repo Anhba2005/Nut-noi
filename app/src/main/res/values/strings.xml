@@ -11,6 +11,7 @@
     <string name="overlay_size_value_default">Kích thước nút nổi: 72 dp</string>
     <string name="overlay_locked">Đã khóa nút nổi, không thể di chuyển.</string>
     <string name="overlay_unlocked">Đã mở khóa nút nổi, có thể di chuyển.</string>
+    <string name="freeze_label">freeze</string>
     <string name="firewall_root_denied">Không có quyền root hoặc thiết bị không hỗ trợ các luật firewall cần thiết.</string>
     <string name="firewall_updated">Đã áp dụng/gỡ luật firewall.</string>
     <string name="greeting">Chào Anh Ba</string>
