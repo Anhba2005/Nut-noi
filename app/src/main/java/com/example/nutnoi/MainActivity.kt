@@ -1,253 +1,217 @@
 package com.example.nutnoi
 
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import java.net.NetworkInterface
+import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
-
     private lateinit var toggleButton: Button
-    private lateinit var chooseAppButton: Button
-    private lateinit var selectedAppLabel: TextView
+    private lateinit var applyButton: Button
     private lateinit var sizeLabel: TextView
     private lateinit var sizeSeekBar: SeekBar
-    private lateinit var wifiCheckBox: CheckBox
-    private lateinit var mobileDataCheckBox: CheckBox
+    private lateinit var deviceInfo: TextView
     private lateinit var rootStatus: TextView
+    private lateinit var interfaceChoices: LinearLayout
+    private val interfaceCheckBoxes = mutableMapOf<String, CheckBox>()
     private val rootCheckExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         toggleButton = findViewById(R.id.btnToggleOverlay)
-        chooseAppButton = findViewById(R.id.btnChooseApp)
-        selectedAppLabel = findViewById(R.id.selectedAppLabel)
+        applyButton = findViewById(R.id.btnApplyFirewall)
         sizeLabel = findViewById(R.id.overlaySizeLabel)
         sizeSeekBar = findViewById(R.id.overlaySizeSeekBar)
-        wifiCheckBox = findViewById(R.id.blockWifiCheckBox)
-        mobileDataCheckBox = findViewById(R.id.blockMobileDataCheckBox)
+        deviceInfo = findViewById(R.id.deviceInfo)
         rootStatus = findViewById(R.id.rootStatus)
+        interfaceChoices = findViewById(R.id.interfaceChoices)
 
+        detectDeviceAndInterfaces()
+        toggleButton.setOnClickListener { toggleOverlayService() }
+        applyButton.setOnClickListener { confirmAndApplyFirewall() }
+        setupSizeControl()
+        updateToggleButton()
+        checkRootStatus()
+    }
+
+    private fun setupSizeControl() {
         val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
-        wifiCheckBox.isChecked = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_WIFI, true)
-        mobileDataCheckBox.isChecked = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_MOBILE, true)
-        wifiCheckBox.setOnCheckedChangeListener { _, _ -> updateNetworkOptions(prefs) }
-        mobileDataCheckBox.setOnCheckedChangeListener { _, _ -> updateNetworkOptions(prefs) }
-
-        toggleButton.setOnClickListener {
-            if (!Settings.canDrawOverlays(this)) {
-                val permissionIntent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
-                startActivity(permissionIntent)
-                return@setOnClickListener
-            }
-
-            val serviceIntent = Intent(this, FloatingOverlayService::class.java)
-            if (FloatingOverlayService.isRunning) {
-                stopService(serviceIntent)
-            } else {
-                ContextCompat.startForegroundService(this, serviceIntent)
-            }
-            updateToggleButton()
-        }
-
-        chooseAppButton.setOnClickListener { showAppPicker() }
-
-        val initialSize = prefs.getInt(
-            FloatingOverlayService.PREF_SIZE_DP,
-            FloatingOverlayService.DEFAULT_SIZE_DP
-        ).coerceIn(FloatingOverlayService.MIN_SIZE_DP, FloatingOverlayService.MAX_SIZE_DP)
+        val initialSize = prefs.getInt(FloatingOverlayService.PREF_SIZE_DP, FloatingOverlayService.DEFAULT_SIZE_DP)
+            .coerceIn(FloatingOverlayService.MIN_SIZE_DP, FloatingOverlayService.MAX_SIZE_DP)
         sizeSeekBar.max = FloatingOverlayService.MAX_SIZE_DP - FloatingOverlayService.MIN_SIZE_DP
         sizeSeekBar.progress = initialSize - FloatingOverlayService.MIN_SIZE_DP
         updateSizeLabel(initialSize)
-
         sizeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val sizeDp = FloatingOverlayService.MIN_SIZE_DP + progress
                 updateSizeLabel(sizeDp)
                 if (fromUser) {
                     prefs.edit().putInt(FloatingOverlayService.PREF_SIZE_DP, sizeDp).apply()
-                    if (FloatingOverlayService.isRunning) {
-                        val resizeIntent = Intent(this@MainActivity, FloatingOverlayService::class.java)
+                    if (FloatingOverlayService.isRunning) startService(
+                        Intent(this@MainActivity, FloatingOverlayService::class.java)
                             .setAction(FloatingOverlayService.ACTION_UPDATE_SIZE)
                             .putExtra(FloatingOverlayService.EXTRA_SIZE_DP, sizeDp)
-                        startService(resizeIntent)
-                    }
-                }
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
-            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
-        })
-
-        updateSelectedAppLabel()
-        updateToggleButton()
-    }
-
-    private fun updateNetworkOptions(prefs: android.content.SharedPreferences) {
-        val oldBlockWifi = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_WIFI, true)
-        val oldBlockMobile = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_MOBILE, true)
-        val newBlockWifi = wifiCheckBox.isChecked
-        val newBlockMobile = mobileDataCheckBox.isChecked
-        if (oldBlockWifi == newBlockWifi && oldBlockMobile == newBlockMobile) return
-
-        prefs.edit()
-            .putBoolean(FloatingOverlayService.PREF_BLOCK_WIFI, newBlockWifi)
-            .putBoolean(FloatingOverlayService.PREF_BLOCK_MOBILE, newBlockMobile)
-            .apply()
-
-        if (FloatingOverlayService.isRunning) {
-            val intent = Intent(this, FloatingOverlayService::class.java)
-                .setAction(FloatingOverlayService.ACTION_UPDATE_NETWORKS)
-                .putExtra(FloatingOverlayService.EXTRA_OLD_BLOCK_WIFI, oldBlockWifi)
-                .putExtra(FloatingOverlayService.EXTRA_OLD_BLOCK_MOBILE, oldBlockMobile)
-            startService(intent)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (::toggleButton.isInitialized) updateToggleButton()
-        if (::rootStatus.isInitialized) checkRootStatus()
-    }
-
-    private fun showAppPicker() {
-        val apps = getLaunchableApps()
-        if (apps.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setMessage(R.string.no_apps_found)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-            return
-        }
-        val names = apps.map { "${it.label} (${it.packageName})" }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle(R.string.choose_app_title)
-            .setItems(names) { _, which ->
-                val selected = apps[which]
-                getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
-                    .edit()
-                    .putString(FloatingOverlayService.PREF_SELECTED_PACKAGE, selected.packageName)
-                    .apply()
-                updateSelectedAppLabel()
-                if (FloatingOverlayService.isRunning) {
-                    startService(
-                        Intent(this, FloatingOverlayService::class.java)
-                            .setAction(FloatingOverlayService.ACTION_SELECT_APP)
                     )
                 }
             }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+        })
+    }
+
+    private fun detectDeviceAndInterfaces() {
+        val soc = detectSoc()
+        val allInterfaces = try {
+            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty().map { it.name }.distinct().sorted()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val candidates = allInterfaces.filter(::isLikelyNetworkInterface)
+        val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
+        val selected = prefs.getStringSet(FloatingOverlayService.PREF_SELECTED_INTERFACES, emptySet()).orEmpty()
+        interfaceChoices.removeAllViews()
+        interfaceCheckBoxes.clear()
+
+        if (candidates.isEmpty()) {
+            deviceInfo.text = getString(R.string.device_info_no_interfaces, soc, allInterfaces.joinToString(", ").ifBlank { getString(R.string.interfaces_none) })
+            applyButton.isEnabled = false
+            return
+        }
+        deviceInfo.text = getString(
+            R.string.device_info,
+            soc,
+            allInterfaces.joinToString(", ").ifBlank { getString(R.string.interfaces_none) }
+        )
+        candidates.forEach { iface ->
+            val box = CheckBox(this).apply {
+                text = getString(interfaceLabel(iface), iface)
+                isChecked = if (selected.isEmpty()) isCommonDefaultInterface(iface) else iface in selected
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            }
+            interfaceCheckBoxes[iface] = box
+            interfaceChoices.addView(box)
+        }
+        applyButton.isEnabled = true
+    }
+
+    private fun isLikelyNetworkInterface(name: String): Boolean {
+        val value = name.lowercase(Locale.ROOT)
+        return listOf("wlan", "wifi", "rmnet", "ccmni", "ccemni", "wwan", "pdp", "eth", "en").any(value::startsWith)
+    }
+
+    private fun isCommonDefaultInterface(name: String): Boolean {
+        val value = name.lowercase(Locale.ROOT)
+        return value.startsWith("wlan") || value.startsWith("wifi") || value.startsWith("rmnet") ||
+            value.startsWith("ccmni") || value.startsWith("ccemni") || value.startsWith("wwan") || value.startsWith("pdp")
+    }
+
+    private fun interfaceLabel(name: String): Int {
+        val value = name.lowercase(Locale.ROOT)
+        return if (value.startsWith("wlan") || value.startsWith("wifi")) R.string.interface_wifi_label
+        else if (value.startsWith("rmnet") || value.startsWith("ccmni") || value.startsWith("ccemni") ||
+            value.startsWith("wwan") || value.startsWith("pdp")) R.string.interface_mobile_label
+        else R.string.interface_other_label
+    }
+
+    private fun detectSoc(): String {
+        val identifiers = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add(Build.SOC_MODEL.orEmpty())
+            add(Build.HARDWARE.orEmpty())
+            add(Build.BOARD.orEmpty())
+            add(Build.DEVICE.orEmpty())
+        }.joinToString(" ").lowercase(Locale.ROOT)
+        return when {
+            "mediatek" in identifiers || Regex("(^|[^a-z])mt[0-9]{3,5}([^0-9]|$)").containsMatchIn(identifiers) -> getString(R.string.soc_mediatek)
+            "qcom" in identifiers || "qualcomm" in identifiers || "snapdragon" in identifiers -> getString(R.string.soc_snapdragon)
+            else -> getString(R.string.soc_unknown)
+        }
+    }
+
+    private fun confirmAndApplyFirewall() {
+        if (!Settings.canDrawOverlays(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
+        }
+        val selected = interfaceCheckBoxes.filterValues { it.isChecked }.keys
+        if (selected.isEmpty()) {
+            Toast.makeText(this, R.string.select_interface_first, Toast.LENGTH_LONG).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.firewall_warning_title)
+            .setMessage(R.string.firewall_global_warning)
             .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.apply) { _, _ ->
+                getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE).edit()
+                    .putStringSet(FloatingOverlayService.PREF_SELECTED_INTERFACES, selected.toSet())
+                    .apply()
+                ContextCompat.startForegroundService(
+                    this,
+                    Intent(this, FloatingOverlayService::class.java)
+                        .setAction(FloatingOverlayService.ACTION_APPLY_FIREWALL)
+                )
+            }
             .show()
     }
 
-    private fun getLaunchableApps(): List<AppChoice> {
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val resolved: List<ResolveInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.queryIntentActivities(
-                launcherIntent,
-                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_ALL.toLong())
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL)
+    private fun toggleOverlayService() {
+        if (!Settings.canDrawOverlays(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
         }
-        return resolved.mapNotNull { item ->
-            val info = item.activityInfo?.applicationInfo ?: return@mapNotNull null
-            if (info.packageName == packageName || info.uid < 0) return@mapNotNull null
-            AppChoice(
-                label = packageManager.getApplicationLabel(info).toString(),
-                packageName = info.packageName
-            )
-        }.distinctBy { it.packageName }
-            .sortedBy { it.label.lowercase() }
-    }
-
-    private fun updateSelectedAppLabel() {
-        val selectedPackage = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
-            .getString(FloatingOverlayService.PREF_SELECTED_PACKAGE, null)
-        val appLabel = selectedPackage?.let { packageName ->
-            try {
-                val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
-                } else {
-                    @Suppress("DEPRECATION")
-                    packageManager.getApplicationInfo(packageName, 0)
-                }
-                packageManager.getApplicationLabel(info).toString()
-            } catch (_: PackageManager.NameNotFoundException) {
-                null
-            }
-        }
-        selectedAppLabel.text = getString(R.string.selected_app_value, appLabel ?: getString(R.string.no_app_selected))
+        val intent = Intent(this, FloatingOverlayService::class.java)
+        if (FloatingOverlayService.isRunning) stopService(intent)
+        else ContextCompat.startForegroundService(this, intent)
+        updateToggleButton()
     }
 
     private fun checkRootStatus() {
         rootStatus.setText(R.string.root_status_checking)
         rootCheckExecutor.execute {
             val hasRoot = try {
-                val process = ProcessBuilder("su", "-c", "id")
-                    .redirectErrorStream(true)
-                    .start()
-                val finished = process.waitFor(ROOT_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                if (!finished) {
-                    process.destroyForcibly()
-                    false
+                val process = ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start()
+                if (!process.waitFor(ROOT_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    process.destroyForcibly(); false
                 } else {
                     val output = process.inputStream.bufferedReader().use { it.readText() }
                     process.exitValue() == 0 && output.contains("uid=0")
                 }
-            } catch (_: Exception) {
-                false
-            }
-
+            } catch (_: Exception) { false }
             runOnUiThread {
                 if (!isFinishing && ::rootStatus.isInitialized) {
-                    rootStatus.setText(
-                        if (hasRoot) R.string.root_status_available
-                        else R.string.root_status_unavailable
-                    )
+                    rootStatus.setText(if (hasRoot) R.string.root_status_available else R.string.root_status_unavailable)
                 }
             }
         }
     }
 
     private fun updateToggleButton() {
-        toggleButton.setText(
-            if (FloatingOverlayService.isRunning) R.string.disable_button
-            else R.string.enable_button
+        if (::toggleButton.isInitialized) toggleButton.setText(
+            if (FloatingOverlayService.isRunning) R.string.disable_button else R.string.enable_button
         )
     }
 
-    private fun updateSizeLabel(sizeDp: Int) {
-        sizeLabel.text = getString(R.string.overlay_size_value, sizeDp)
-    }
+    private fun updateSizeLabel(sizeDp: Int) { sizeLabel.text = getString(R.string.overlay_size_value, sizeDp) }
 
-    override fun onDestroy() {
-        rootCheckExecutor.shutdownNow()
-        super.onDestroy()
-    }
+    override fun onResume() { super.onResume(); updateToggleButton() }
+    override fun onDestroy() { rootCheckExecutor.shutdownNow(); super.onDestroy() }
 
-    private data class AppChoice(val label: String, val packageName: String)
-
-    companion object {
-        private const val ROOT_CHECK_TIMEOUT_SECONDS = 5L
-    }
+    companion object { private const val ROOT_CHECK_TIMEOUT_SECONDS = 5L }
 }

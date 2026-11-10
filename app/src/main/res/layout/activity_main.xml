@@ -4,14 +4,12 @@
     android:layout_height="match_parent"
     android:fillViewport="true"
     android:background="#F5F7FA">
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp"
         android:gravity="center_vertical">
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -19,8 +17,7 @@
             android:textColor="#1F2937"
             android:textSize="24sp"
             android:textStyle="bold"
-            android:layout_marginBottom="20dp" />
-
+            android:layout_marginBottom="16dp" />
         <TextView
             android:id="@+id/rootStatus"
             android:layout_width="match_parent"
@@ -28,35 +25,15 @@
             android:text="@string/root_status_checking"
             android:textColor="#1F2937"
             android:textSize="16sp"
-            android:paddingBottom="20dp"
+            android:paddingBottom="16dp"
             android:accessibilityLiveRegion="polite" />
-
         <TextView
+            android:id="@+id/deviceInfo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/choose_app_title"
-            android:textColor="#1F2937"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingBottom="6dp" />
-
-        <TextView
-            android:id="@+id/selectedAppLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/no_app_selected"
             android:textColor="#1F2937"
             android:textSize="14sp"
-            android:paddingBottom="8dp" />
-
-        <Button
-            android:id="@+id/btnChooseApp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/choose_app_button"
-            android:textAllCaps="false"
-            android:layout_marginBottom="12dp" />
-
+            android:paddingBottom="16dp" />
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -65,35 +42,33 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:paddingBottom="4dp" />
-
-        <CheckBox
-            android:id="@+id/blockWifiCheckBox"
+        <LinearLayout
+            android:id="@+id/interfaceChoices"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/block_wifi" />
-
-        <CheckBox
-            android:id="@+id/blockMobileDataCheckBox"
+            android:orientation="vertical" />
+        <Button
+            android:id="@+id/btnApplyFirewall"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/block_mobile_data" />
-
+            android:text="@string/apply_firewall"
+            android:textAllCaps="false"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="8dp" />
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/network_block_options_hint"
-            android:textColor="#6B7280"
+            android:text="@string/firewall_warning_short"
+            android:textColor="#B91C1C"
             android:textSize="13sp"
-            android:paddingBottom="16dp" />
-
+            android:paddingBottom="20dp" />
         <Button
             android:id="@+id/btnToggleOverlay"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/enable_button"
             android:textAllCaps="false"
-            android:layout_marginBottom="28dp" />
-
+            android:layout_marginBottom="24dp" />
         <TextView
             android:id="@+id/overlaySizeLabel"
             android:layout_width="match_parent"
@@ -103,7 +78,6 @@
             android:textColor="#1F2937"
             android:textSize="16sp"
             android:paddingBottom="8dp" />
-
         <SeekBar
             android:id="@+id/overlaySizeSeekBar"
             android:layout_width="match_parent"

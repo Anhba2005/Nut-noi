@@ -1,33 +1,26 @@
 package com.example.nutnoi
 
-/** Fixed, app-owned firewall rules. Only validated numeric app UIDs are interpolated. */
+/** Global inbound firewall rules for explicitly selected, detected interfaces. */
 object Config {
-    private const val WIFI_INTERFACE = "wlan0"
-    private const val MOBILE_INTERFACE = "ccmni+"
+    private val interfaceNamePattern = Regex("[A-Za-z0-9_.:+-]{1,15}")
 
-    fun blockAppCommands(uid: Int, blockWifi: Boolean, blockMobile: Boolean): List<String> {
-        require(uid >= 0) { "UID must be non-negative" }
-        return selectedInterfaces(blockWifi, blockMobile).flatMap { iface ->
-            listOf("iptables", "ip6tables").map { tool -> addRule(tool, iface, uid) }
+    fun blockCommands(interfaces: Collection<String>): List<String> = rulesFor(interfaces) { tool, iface ->
+        "$tool -C INPUT -i $iface -j DROP || $tool -I INPUT 1 -i $iface -j DROP"
+    }
+
+    fun unblockCommands(interfaces: Collection<String>): List<String> = rulesFor(interfaces) { tool, iface ->
+        "while $tool -D INPUT -i $iface -j DROP 2>/dev/null; do :; done"
+    }
+
+    private fun rulesFor(
+        interfaces: Collection<String>,
+        command: (tool: String, iface: String) -> String
+    ): List<String> {
+        val validated = interfaces.distinct().onEach { iface ->
+            require(interfaceNamePattern.matches(iface)) { "Invalid network interface name" }
+        }
+        return validated.flatMap { iface ->
+            listOf("iptables", "ip6tables").map { tool -> command(tool, iface) }
         }
     }
-
-    fun unblockAppCommands(uid: Int, blockWifi: Boolean, blockMobile: Boolean): List<String> {
-        require(uid >= 0) { "UID must be non-negative" }
-        return selectedInterfaces(blockWifi, blockMobile).flatMap { iface ->
-            listOf("iptables", "ip6tables").map { tool -> removeRule(tool, iface, uid) }
-        }
-    }
-
-    private fun selectedInterfaces(blockWifi: Boolean, blockMobile: Boolean): List<String> = buildList {
-        if (blockWifi) add(WIFI_INTERFACE)
-        if (blockMobile) add(MOBILE_INTERFACE)
-    }
-
-    private fun addRule(tool: String, iface: String, uid: Int): String =
-        "$tool -C OUTPUT -o $iface -m owner --uid-owner $uid -j DROP || " +
-            "$tool -I OUTPUT 1 -o $iface -m owner --uid-owner $uid -j DROP"
-
-    private fun removeRule(tool: String, iface: String, uid: Int): String =
-        "while $tool -D OUTPUT -o $iface -m owner --uid-owner $uid -j DROP 2>/dev/null; do :; done"
 }

@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -31,7 +30,6 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 class FloatingOverlayService : Service() {
-
     private lateinit var windowManager: WindowManager
     private val mainHandler = Handler(Looper.getMainLooper())
     private val commandExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -45,7 +43,6 @@ class FloatingOverlayService : Service() {
     private var holdTriggered = false
     private var isLocked = false
     private var isBlocked = false
-    private var activeUid: Int? = null
     private val touchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
 
     private val longPressRunnable = Runnable {
@@ -61,65 +58,36 @@ class FloatingOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP -> {
-                stopSelf()
-                return START_NOT_STICKY
-            }
-            ACTION_UPDATE_SIZE -> {
-                val sizeDp = intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp())
-                    .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
-                getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
-                updateOverlaySize(sizeDp)
-                return START_STICKY
-            }
-            ACTION_UPDATE_NETWORKS -> {
-                val oldBlockWifi = intent.getBooleanExtra(
-                    EXTRA_OLD_BLOCK_WIFI,
-                    getPreferences().getBoolean(PREF_BLOCK_WIFI, true)
-                )
-                val oldBlockMobile = intent.getBooleanExtra(
-                    EXTRA_OLD_BLOCK_MOBILE,
-                    getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
-                )
-                val uid = if (isBlocked) activeUid else null
-                if (uid != null) {
-                    val newBlockWifi = getPreferences().getBoolean(PREF_BLOCK_WIFI, true)
-                    val newBlockMobile = getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
-                    commandExecutor.execute {
-                        applyFirewallRules(Config.unblockAppCommands(uid, oldBlockWifi, oldBlockMobile))
-                        applyFirewallRules(Config.blockAppCommands(uid, newBlockWifi, newBlockMobile))
-                    }
-                }
-                return START_STICKY
-            }
-            ACTION_SELECT_APP -> {
-                clearActiveBlock()
-                return START_STICKY
-            }
+        if (intent?.action == ACTION_STOP) {
+            stopSelf()
+            return START_NOT_STICKY
         }
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
-
         startForeground(NOTIFICATION_ID, createNotification())
         if (overlayView == null) showOverlay()
         isRunning = true
+
+        when (intent?.action) {
+            ACTION_UPDATE_SIZE -> {
+                val sizeDp = intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp())
+                    .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
+                getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
+                updateOverlaySize(sizeDp)
+            }
+            ACTION_APPLY_FIREWALL -> applySelectedFirewall()
+        }
         return START_STICKY
     }
 
     private fun showOverlay() {
         windowManager = getSystemService(WindowManager::class.java)
         val view = LayoutInflater.from(this).inflate(R.layout.floating_button, null)
-        val label = view.findViewById<TextView>(R.id.floatingLabel)
         isLocked = getPreferences().getBoolean(PREF_LOCKED, false)
         isBlocked = getPreferences().getBoolean(PREF_BLOCKED, false)
-        activeUid = getPreferences().getInt(PREF_BLOCKED_UID, INVALID_UID).takeIf { it >= 0 }
-        label.setBackgroundResource(if (isBlocked) R.drawable.floating_button_blue else R.drawable.floating_button_red)
-        view.contentDescription = getString(
-            if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked
-        )
+        updateOverlayAppearance(view)
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -129,11 +97,7 @@ class FloatingOverlayService : Service() {
         }
         val sizePx = dpToPx(readSizeDp())
         val layoutParams = WindowManager.LayoutParams(
-            sizePx,
-            sizePx,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
+            sizePx, sizePx, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             x = getPreferences().getInt(PREF_X, 24)
@@ -142,11 +106,6 @@ class FloatingOverlayService : Service() {
         overlayLayoutParams = layoutParams
         overlayView = view
         windowManager.addView(view, layoutParams)
-
-        if (isBlocked) {
-            activeUid?.let { uid -> commandExecutor.execute { applyFirewallRules(blockCommands(uid)) } }
-                ?: clearBlockedPreference()
-        }
 
         view.setOnTouchListener { _, event ->
             when (event.action) {
@@ -178,14 +137,12 @@ class FloatingOverlayService : Service() {
                 MotionEvent.ACTION_UP -> {
                     mainHandler.removeCallbacks(longPressRunnable)
                     if (holdTriggered) {
-                        // Long press toggled move lock; do not treat release as a tap.
+                        // Long press toggled move lock.
                     } else if (isDragging && !isLocked) {
-                        getPreferences().edit()
-                            .putInt(PREF_X, layoutParams.x)
-                            .putInt(PREF_Y, layoutParams.y)
-                            .apply()
+                        getPreferences().edit().putInt(PREF_X, layoutParams.x)
+                            .putInt(PREF_Y, layoutParams.y).apply()
                     } else if (!isDragging) {
-                        toggleAppBlock(label)
+                        toggleFirewall()
                     }
                     true
                 }
@@ -198,155 +155,119 @@ class FloatingOverlayService : Service() {
         }
     }
 
-    private fun toggleAppBlock(label: TextView) {
-        if (isBlocked) {
-            val uid = activeUid
+    private fun selectedInterfaces(): List<String> =
+        getPreferences().getStringSet(PREF_SELECTED_INTERFACES, emptySet())?.toList().orEmpty()
+
+    private fun applySelectedFirewall() {
+        val selected = selectedInterfaces()
+        if (selected.isEmpty()) {
+            Toast.makeText(this, R.string.select_interface_first, Toast.LENGTH_LONG).show()
+            return
+        }
+        val prefs = getPreferences()
+        val previouslyApplied = prefs.getStringSet(PREF_APPLIED_INTERFACES, emptySet())?.toList().orEmpty()
+        val commands = buildList {
+            if (prefs.getBoolean(PREF_BLOCKED, false) && previouslyApplied.isNotEmpty()) {
+                addAll(Config.unblockCommands(previouslyApplied))
+            }
+            addAll(Config.blockCommands(selected))
+        }
+        runFirewallCommands(commands) { success ->
+            if (success) {
+                prefs.edit().putBoolean(PREF_BLOCKED, true)
+                    .putStringSet(PREF_APPLIED_INTERFACES, selected.toSet()).apply()
+                isBlocked = true
+                updateOverlayAppearance()
+            }
+        }
+    }
+
+    private fun toggleFirewall() {
+        val prefs = getPreferences()
+        if (!isBlocked) {
+            applySelectedFirewall()
+            return
+        }
+        val applied = prefs.getStringSet(PREF_APPLIED_INTERFACES, emptySet())?.toList().orEmpty()
+        if (applied.isEmpty()) {
             isBlocked = false
-            activeUid = null
-            clearBlockedPreference()
-            label.setBackgroundResource(R.drawable.floating_button_red)
-            if (uid != null) commandExecutor.execute { applyFirewallRules(unblockCommands(uid)) }
-            else showFirewallResult(false)
+            prefs.edit().putBoolean(PREF_BLOCKED, false).apply()
+            updateOverlayAppearance()
             return
         }
-
-        val packageName = getPreferences().getString(PREF_SELECTED_PACKAGE, null)
-        val uid = packageName?.let(::getAppUid)
-        if (uid == null) {
-            Toast.makeText(this, R.string.select_app_first, Toast.LENGTH_LONG).show()
-            return
+        runFirewallCommands(Config.unblockCommands(applied)) { success ->
+            if (success) {
+                prefs.edit().putBoolean(PREF_BLOCKED, false).remove(PREF_APPLIED_INTERFACES).apply()
+                isBlocked = false
+                updateOverlayAppearance()
+            }
         }
-
-        isBlocked = true
-        activeUid = uid
-        getPreferences().edit()
-            .putBoolean(PREF_BLOCKED, true)
-            .putInt(PREF_BLOCKED_UID, uid)
-            .apply()
-        label.setBackgroundResource(R.drawable.floating_button_blue)
-        commandExecutor.execute { applyFirewallRules(blockCommands(uid)) }
     }
 
-    private fun clearActiveBlock() {
-        val uid = activeUid
-        if (isBlocked && uid != null) {
-            commandExecutor.execute { applyFirewallRules(unblockCommands(uid)) }
-        }
-        isBlocked = false
-        activeUid = null
-        clearBlockedPreference()
-        overlayView?.findViewById<TextView>(R.id.floatingLabel)
-            ?.setBackgroundResource(R.drawable.floating_button_red)
+    private fun updateOverlayAppearance(view: View? = overlayView) {
+        view?.findViewById<TextView>(R.id.floatingLabel)?.setBackgroundResource(
+            if (isBlocked) R.drawable.floating_button_blue else R.drawable.floating_button_red
+        )
+        view?.contentDescription = getString(if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked)
     }
 
-    private fun blockCommands(uid: Int): List<String> = Config.blockAppCommands(
-        uid,
-        getPreferences().getBoolean(PREF_BLOCK_WIFI, true),
-        getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
-    )
-
-    private fun unblockCommands(uid: Int): List<String> = Config.unblockAppCommands(
-        uid,
-        getPreferences().getBoolean(PREF_BLOCK_WIFI, true),
-        getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
-    )
-
-    private fun clearBlockedPreference() {
-        getPreferences().edit()
-            .putBoolean(PREF_BLOCKED, false)
-            .remove(PREF_BLOCKED_UID)
-            .apply()
-    }
-
-    private fun getAppUid(packageName: String): Int? = try {
-        val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getApplicationInfo(packageName, 0)
-        }
-        appInfo.uid.takeIf { it >= 0 && packageName != this.packageName }
-    } catch (_: PackageManager.NameNotFoundException) {
-        null
-    }
-
-    /** Executes only fixed firewall rules for a validated numeric UID. */
-    private fun applyFirewallRules(commands: List<String>) {
-        var process: Process? = null
-        try {
-            process = ProcessBuilder("su")
-                .redirectErrorStream(true)
-                .start()
-            BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
-                writer.write("set -e")
-                writer.newLine()
-                commands.forEach { command ->
-                    writer.write(command)
-                    writer.newLine()
+    private fun runFirewallCommands(commands: List<String>, onComplete: (Boolean) -> Unit) {
+        commandExecutor.execute {
+            var process: Process? = null
+            val success = try {
+                process = ProcessBuilder("su").redirectErrorStream(true).start()
+                BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
+                    writer.write("set -e"); writer.newLine()
+                    commands.forEach { writer.write(it); writer.newLine() }
+                    writer.write("exit"); writer.newLine(); writer.flush()
                 }
-                writer.write("exit")
-                writer.newLine()
-                writer.flush()
+                if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    process.destroyForcibly()
+                    false
+                } else {
+                    val output = process.inputStream.bufferedReader().use { it.readText() }
+                    val ok = process.exitValue() == 0
+                    if (!ok) Log.e(TAG, "Global firewall command failed: $output")
+                    ok
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Could not apply global firewall rules", e)
+                process?.destroyForcibly()
+                false
             }
-
-            if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                process.destroyForcibly()
-                showFirewallResult(false)
-                return
+            mainHandler.post {
+                if (isRunning) Toast.makeText(
+                    this,
+                    getString(if (success) R.string.firewall_updated else R.string.firewall_root_denied),
+                    Toast.LENGTH_LONG
+                ).show()
+                onComplete(success)
             }
-            val output = process.inputStream.bufferedReader().use { it.readText() }
-            val success = process.exitValue() == 0
-            if (!success) Log.e(TAG, "Per-app firewall command failed: $output")
-            showFirewallResult(success)
-        } catch (e: Exception) {
-            Log.e(TAG, "Could not apply per-app firewall rules", e)
-            process?.destroyForcibly()
-            showFirewallResult(false)
-        }
-    }
-
-    private fun showFirewallResult(success: Boolean) {
-        mainHandler.post {
-            if (!isRunning) return@post
-            Toast.makeText(
-                this,
-                getString(if (success) R.string.firewall_updated else R.string.firewall_root_denied),
-                Toast.LENGTH_LONG
-            ).show()
         }
     }
 
     private fun updateOverlaySize(sizeDp: Int) {
         val view = overlayView ?: return
         val params = overlayLayoutParams ?: return
-        val sizePx = dpToPx(sizeDp)
-        params.width = sizePx
-        params.height = sizePx
+        val px = dpToPx(sizeDp)
+        params.width = px
+        params.height = px
         windowManager.updateViewLayout(view, params)
     }
 
-    private fun readSizeDp(): Int = getPreferences()
-        .getInt(PREF_SIZE_DP, DEFAULT_SIZE_DP)
+    private fun readSizeDp() = getPreferences().getInt(PREF_SIZE_DP, DEFAULT_SIZE_DP)
         .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
 
-    private fun dpToPx(sizeDp: Int): Int =
-        (sizeDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+    private fun dpToPx(sizeDp: Int) = (sizeDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
 
     private fun createNotification(): Notification {
         val channelId = "nutnoi_overlay_service"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            )
+            val channel = NotificationChannel(channelId, getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
-
         val stopIntent = PendingIntent.getService(
-            this,
-            0,
-            Intent(this, FloatingOverlayService::class.java).setAction(ACTION_STOP),
+            this, 0, Intent(this, FloatingOverlayService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, channelId)
@@ -362,12 +283,13 @@ class FloatingOverlayService : Service() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(longPressRunnable)
-        val uidToUnblock = if (isBlocked) activeUid else null
-        if (uidToUnblock != null) {
-            clearBlockedPreference()
-            commandExecutor.execute { applyFirewallRules(unblockCommands(uidToUnblock)) }
+        val prefs = getPreferences()
+        val applied = prefs.getStringSet(PREF_APPLIED_INTERFACES, emptySet())?.toList().orEmpty()
+        if (prefs.getBoolean(PREF_BLOCKED, false) && applied.isNotEmpty()) {
+            commandExecutor.execute { runFirewallCommandsForCleanup(Config.unblockCommands(applied)) }
+            prefs.edit().putBoolean(PREF_BLOCKED, false).remove(PREF_APPLIED_INTERFACES).apply()
         }
-        overlayView?.let { view -> runCatching { windowManager.removeView(view) } }
+        overlayView?.let { runCatching { windowManager.removeView(it) } }
         overlayView = null
         overlayLayoutParams = null
         isRunning = false
@@ -375,27 +297,36 @@ class FloatingOverlayService : Service() {
         super.onDestroy()
     }
 
+    private fun runFirewallCommandsForCleanup(commands: List<String>) {
+        var process: Process? = null
+        try {
+            process = ProcessBuilder("su").redirectErrorStream(true).start()
+            BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
+                commands.forEach { writer.write(it); writer.newLine() }
+                writer.write("exit"); writer.newLine(); writer.flush()
+            }
+            if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) process.destroyForcibly()
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not remove global firewall rules during shutdown", e)
+            process?.destroyForcibly()
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
         const val ACTION_STOP = "com.example.nutnoi.action.STOP_OVERLAY"
         const val ACTION_UPDATE_SIZE = "com.example.nutnoi.action.UPDATE_OVERLAY_SIZE"
-        const val ACTION_SELECT_APP = "com.example.nutnoi.action.SELECT_APP"
-        const val ACTION_UPDATE_NETWORKS = "com.example.nutnoi.action.UPDATE_NETWORKS"
+        const val ACTION_APPLY_FIREWALL = "com.example.nutnoi.action.APPLY_FIREWALL"
         const val EXTRA_SIZE_DP = "overlay_size_dp"
-        const val EXTRA_OLD_BLOCK_WIFI = "old_block_wifi"
-        const val EXTRA_OLD_BLOCK_MOBILE = "old_block_mobile"
-        const val PREF_BLOCK_WIFI = "block_wifi"
-        const val PREF_BLOCK_MOBILE = "block_mobile"
         const val PREFERENCES = "overlay_position"
         const val PREF_SIZE_DP = "size_dp"
-        const val PREF_SELECTED_PACKAGE = "selected_package"
+        const val PREF_SELECTED_INTERFACES = "selected_interfaces"
+        const val PREF_APPLIED_INTERFACES = "applied_interfaces"
         const val DEFAULT_SIZE_DP = 72
         const val MIN_SIZE_DP = 48
         const val MAX_SIZE_DP = 144
         private const val PREF_BLOCKED = "app_blocked"
-        private const val PREF_BLOCKED_UID = "blocked_uid"
-        private const val INVALID_UID = -1
         private const val NOTIFICATION_ID = 101
         private const val PREF_X = "x"
         private const val PREF_Y = "y"
@@ -404,8 +335,7 @@ class FloatingOverlayService : Service() {
         private const val ROOT_TIMEOUT_SECONDS = 15L
         private const val TAG = "FloatingOverlayService"
 
-        @Volatile
-        var isRunning: Boolean = false
+        @Volatile var isRunning: Boolean = false
             private set
     }
 }
