@@ -1,12 +1,35 @@
 package com.example.nutnoi
 
-/** Fixed app-owned firewall rules. Arbitrary user-provided shell commands are not executed. */
+/** Fixed, app-owned firewall rules. Only validated numeric app UIDs are interpolated. */
 object Config {
-    const val BLOCK_MOBILE_IPV4 = "iptables -C INPUT -i ccmni+ -j DROP || iptables -I INPUT 1 -i ccmni+ -j DROP"
-    const val BLOCK_MOBILE_IPV6 = "ip6tables -C INPUT -i ccmni+ -j DROP || ip6tables -I INPUT 1 -i ccmni+ -j DROP"
-    const val UNBLOCK_MOBILE_IPV4 = "while iptables -D INPUT -i ccmni+ -j DROP 2>/dev/null; do :; done"
-    const val UNBLOCK_MOBILE_IPV6 = "while ip6tables -D INPUT -i ccmni+ -j DROP 2>/dev/null; do :; done"
+    private const val WIFI_INTERFACE = "wlan0"
+    private const val MOBILE_INTERFACE = "ccmni+"
 
-    const val BLOCK_WIFI_IPV4 = "iptables -C INPUT -i wlan0 -j DROP || iptables -I INPUT 1 -i wlan0 -j DROP"
-    const val UNBLOCK_WIFI_IPV4 = "while iptables -D INPUT -i wlan0 -j DROP 2>/dev/null; do :; done"
+    fun blockAppCommands(uid: Int): List<String> {
+        require(uid >= 0) { "UID must be non-negative" }
+        return listOf(
+            addRule("iptables", WIFI_INTERFACE, uid),
+            addRule("ip6tables", WIFI_INTERFACE, uid),
+            addRule("iptables", MOBILE_INTERFACE, uid),
+            addRule("ip6tables", MOBILE_INTERFACE, uid)
+        )
+    }
+
+    fun unblockAppCommands(uid: Int): List<String> {
+        require(uid >= 0) { "UID must be non-negative" }
+        return listOf(
+            removeRule("iptables", WIFI_INTERFACE, uid),
+            removeRule("ip6tables", WIFI_INTERFACE, uid),
+            removeRule("iptables", MOBILE_INTERFACE, uid),
+            removeRule("ip6tables", MOBILE_INTERFACE, uid)
+        )
+    }
+
+    private fun addRule(tool: String, iface: String, uid: Int): String {
+        val rule = "$tool -o $iface -m owner --uid-owner $uid -j DROP"
+        return "$tool -C OUTPUT -o $iface -m owner --uid-owner $uid -j DROP || $tool -I OUTPUT 1 -o $iface -m owner --uid-owner $uid -j DROP"
+    }
+
+    private fun removeRule(tool: String, iface: String, uid: Int): String =
+        "while $tool -D OUTPUT -o $iface -m owner --uid-owner $uid -j DROP 2>/dev/null; do :; done"
 }

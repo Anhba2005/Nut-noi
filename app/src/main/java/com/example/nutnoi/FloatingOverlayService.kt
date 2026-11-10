@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -43,7 +44,8 @@ class FloatingOverlayService : Service() {
     private var isDragging = false
     private var holdTriggered = false
     private var isLocked = false
-    private var isBlue = false
+    private var isBlocked = false
+    private var activeUid: Int? = null
     private val touchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
 
     private val longPressRunnable = Runnable {
@@ -59,16 +61,22 @@ class FloatingOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        if (intent?.action == ACTION_UPDATE_SIZE) {
-            val sizeDp = intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp())
-                .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
-            getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
-            updateOverlaySize(sizeDp)
-            return START_STICKY
+        when (intent?.action) {
+            ACTION_STOP -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_UPDATE_SIZE -> {
+                val sizeDp = intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp())
+                    .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
+                getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
+                updateOverlaySize(sizeDp)
+                return START_STICKY
+            }
+            ACTION_SELECT_APP -> {
+                clearActiveBlock()
+                return START_STICKY
+            }
         }
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
@@ -86,7 +94,9 @@ class FloatingOverlayService : Service() {
         val view = LayoutInflater.from(this).inflate(R.layout.floating_button, null)
         val label = view.findViewById<TextView>(R.id.floatingLabel)
         isLocked = getPreferences().getBoolean(PREF_LOCKED, false)
-        label.setBackgroundResource(if (isBlue) R.drawable.floating_button_blue else R.drawable.floating_button_red)
+        isBlocked = getPreferences().getBoolean(PREF_BLOCKED, false)
+        activeUid = getPreferences().getInt(PREF_BLOCKED_UID, INVALID_UID).takeIf { it >= 0 }
+        label.setBackgroundResource(if (isBlocked) R.drawable.floating_button_blue else R.drawable.floating_button_red)
         view.contentDescription = getString(
             if (isLocked) R.string.overlay_locked else R.string.overlay_unlocked
         )
@@ -112,6 +122,11 @@ class FloatingOverlayService : Service() {
         overlayLayoutParams = layoutParams
         overlayView = view
         windowManager.addView(view, layoutParams)
+
+        if (isBlocked) {
+            activeUid?.let { uid -> commandExecutor.execute { applyFirewallRules(Config.blockAppCommands(uid)) } }
+                ?: clearBlockedPreference()
+        }
 
         view.setOnTouchListener { _, event ->
             when (event.action) {
@@ -150,25 +165,7 @@ class FloatingOverlayService : Service() {
                             .putInt(PREF_Y, layoutParams.y)
                             .apply()
                     } else if (!isDragging) {
-                        isBlue = !isBlue
-                        label.setBackgroundResource(
-                            if (isBlue) R.drawable.floating_button_blue
-                            else R.drawable.floating_button_red
-                        )
-                        val commands = if (isBlue) {
-                            listOf(
-                                Config.BLOCK_MOBILE_IPV4,
-                                Config.BLOCK_MOBILE_IPV6,
-                                Config.BLOCK_WIFI_IPV4
-                            )
-                        } else {
-                            listOf(
-                                Config.UNBLOCK_MOBILE_IPV4,
-                                Config.UNBLOCK_MOBILE_IPV6,
-                                Config.UNBLOCK_WIFI_IPV4
-                            )
-                        }
-                        commandExecutor.execute { applyFirewallRules(commands) }
+                        toggleAppBlock(label)
                     }
                     true
                 }
@@ -181,7 +178,67 @@ class FloatingOverlayService : Service() {
         }
     }
 
-    /** Applies only the fixed firewall rules bundled with the app. */
+    private fun toggleAppBlock(label: TextView) {
+        if (isBlocked) {
+            val uid = activeUid
+            isBlocked = false
+            activeUid = null
+            clearBlockedPreference()
+            label.setBackgroundResource(R.drawable.floating_button_red)
+            if (uid != null) commandExecutor.execute { applyFirewallRules(Config.unblockAppCommands(uid)) }
+            else showFirewallResult(false)
+            return
+        }
+
+        val packageName = getPreferences().getString(PREF_SELECTED_PACKAGE, null)
+        val uid = packageName?.let(::getAppUid)
+        if (uid == null) {
+            Toast.makeText(this, R.string.select_app_first, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        isBlocked = true
+        activeUid = uid
+        getPreferences().edit()
+            .putBoolean(PREF_BLOCKED, true)
+            .putInt(PREF_BLOCKED_UID, uid)
+            .apply()
+        label.setBackgroundResource(R.drawable.floating_button_blue)
+        commandExecutor.execute { applyFirewallRules(Config.blockAppCommands(uid)) }
+    }
+
+    private fun clearActiveBlock() {
+        val uid = activeUid
+        if (isBlocked && uid != null) {
+            commandExecutor.execute { applyFirewallRules(Config.unblockAppCommands(uid)) }
+        }
+        isBlocked = false
+        activeUid = null
+        clearBlockedPreference()
+        overlayView?.findViewById<TextView>(R.id.floatingLabel)
+            ?.setBackgroundResource(R.drawable.floating_button_red)
+    }
+
+    private fun clearBlockedPreference() {
+        getPreferences().edit()
+            .putBoolean(PREF_BLOCKED, false)
+            .remove(PREF_BLOCKED_UID)
+            .apply()
+    }
+
+    private fun getAppUid(packageName: String): Int? = try {
+        val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getApplicationInfo(packageName, 0)
+        }
+        appInfo.uid.takeIf { it >= 0 && packageName != this.packageName }
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
+    }
+
+    /** Executes only fixed firewall rules for a validated numeric UID. */
     private fun applyFirewallRules(commands: List<String>) {
         var process: Process? = null
         try {
@@ -189,6 +246,8 @@ class FloatingOverlayService : Service() {
                 .redirectErrorStream(true)
                 .start()
             BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
+                writer.write("set -e")
+                writer.newLine()
                 commands.forEach { command ->
                     writer.write(command)
                     writer.newLine()
@@ -205,10 +264,10 @@ class FloatingOverlayService : Service() {
             }
             val output = process.inputStream.bufferedReader().use { it.readText() }
             val success = process.exitValue() == 0
-            if (!success) Log.e(TAG, "Firewall command failed: $output")
+            if (!success) Log.e(TAG, "Per-app firewall command failed: $output")
             showFirewallResult(success)
         } catch (e: Exception) {
-            Log.e(TAG, "Could not apply firewall rules", e)
+            Log.e(TAG, "Could not apply per-app firewall rules", e)
             process?.destroyForcibly()
             showFirewallResult(false)
         }
@@ -271,20 +330,12 @@ class FloatingOverlayService : Service() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(longPressRunnable)
-        if (isBlue) {
-            commandExecutor.execute {
-                applyFirewallRules(
-                    listOf(
-                        Config.UNBLOCK_MOBILE_IPV4,
-                        Config.UNBLOCK_MOBILE_IPV6,
-                        Config.UNBLOCK_WIFI_IPV4
-                    )
-                )
-            }
+        val uidToUnblock = if (isBlocked) activeUid else null
+        if (uidToUnblock != null) {
+            clearBlockedPreference()
+            commandExecutor.execute { applyFirewallRules(Config.unblockAppCommands(uidToUnblock)) }
         }
-        overlayView?.let { view ->
-            runCatching { windowManager.removeView(view) }
-        }
+        overlayView?.let { view -> runCatching { windowManager.removeView(view) } }
         overlayView = null
         overlayLayoutParams = null
         isRunning = false
@@ -297,12 +348,17 @@ class FloatingOverlayService : Service() {
     companion object {
         const val ACTION_STOP = "com.example.nutnoi.action.STOP_OVERLAY"
         const val ACTION_UPDATE_SIZE = "com.example.nutnoi.action.UPDATE_OVERLAY_SIZE"
+        const val ACTION_SELECT_APP = "com.example.nutnoi.action.SELECT_APP"
         const val EXTRA_SIZE_DP = "overlay_size_dp"
         const val PREFERENCES = "overlay_position"
         const val PREF_SIZE_DP = "size_dp"
+        const val PREF_SELECTED_PACKAGE = "selected_package"
         const val DEFAULT_SIZE_DP = 72
         const val MIN_SIZE_DP = 48
         const val MAX_SIZE_DP = 144
+        private const val PREF_BLOCKED = "app_blocked"
+        private const val PREF_BLOCKED_UID = "blocked_uid"
+        private const val INVALID_UID = -1
         private const val NOTIFICATION_ID = 101
         private const val PREF_X = "x"
         private const val PREF_Y = "y"
