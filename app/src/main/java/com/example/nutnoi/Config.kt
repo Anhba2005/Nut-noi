@@ -19,9 +19,13 @@ ip6tables -D INPUT -i ccmni+ -j DROP"""
         require(commands.size <= 12) { "Too many commands" }
 
         commands.forEach { command ->
-            val parts = command.split(Regex("\\s+")).toMutableList()
-            require(parts.size >= 8) { "Invalid firewall command" }
-            require(parts[0] == "iptables" || parts[0] == "ip6tables") { "Only iptables/ip6tables are allowed" }
+            val parts = command.split(Regex("\\s+"))
+            // The shortest valid command has seven tokens, e.g.:
+            // iptables -A INPUT -i wlan0 -j DROP
+            require(parts.size >= 7) { "Invalid firewall command" }
+            require(parts[0] == "iptables" || parts[0] == "ip6tables") {
+                "Only iptables/ip6tables are allowed"
+            }
             val operation = parts[1]
             require(if (isBlocking) operation == "-A" || operation == "-I" else operation == "-D") {
                 "Use -A or -I for blocking and -D for unblocking"
@@ -29,7 +33,9 @@ ip6tables -D INPUT -i ccmni+ -j DROP"""
             require(parts[2] == "INPUT") { "Only INPUT chain rules are allowed" }
             var index = 3
             if (operation == "-I" && parts.getOrNull(index) != "-i") {
-                require(parts.getOrNull(index)?.toIntOrNull()?.let { it in 1..999 } == true) { "Invalid insert position" }
+                require(parts.getOrNull(index)?.toIntOrNull()?.let { it in 1..999 } == true) {
+                    "Invalid insert position"
+                }
                 index++
             }
             require(parts.getOrNull(index) == "-i") { "Expected -i interface" }
