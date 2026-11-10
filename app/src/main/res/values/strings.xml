@@ -25,5 +25,6 @@
     <string name="commands_invalid">Lệnh trống hoặc cấu trúc không xử lý được.</string>
     <string name="firewall_commands_invalid">Lệnh đã lưu gặp lỗi khi xử lý. Hãy kiểm tra lại cấu hình.</string>
     <string name="firewall_warning_short">Cảnh báo: Lệnh thực thi trực tiếp dưới quyền tối cao (root), hãy chắc chắn cấu hình của bạn là chính xác.</string>
+    <string name="save_configuration">Lưu cấu hình</string>
     <string name="save">Lưu</string>
 </resources>
