@@ -25,43 +25,27 @@
             android:text="@string/root_status_checking"
             android:textColor="#1F2937"
             android:textSize="16sp"
-            android:paddingBottom="16dp"
-            android:accessibilityLiveRegion="polite" />
-        <TextView
-            android:id="@+id/deviceInfo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#1F2937"
-            android:textSize="14sp"
             android:paddingBottom="16dp" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/network_block_options"
-            android:textColor="#1F2937"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingBottom="4dp" />
-        <LinearLayout
-            android:id="@+id/interfaceChoices"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-        <Button
-            android:id="@+id/btnApplyFirewall"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/apply_firewall"
-            android:textAllCaps="false"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="8dp" />
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/firewall_warning_short"
             android:textColor="#B91C1C"
-            android:textSize="13sp"
-            android:paddingBottom="20dp" />
+            android:textSize="14sp"
+            android:paddingBottom="12dp" />
+        <Button
+            android:id="@+id/btnEditBlockCommands"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/edit_block_commands"
+            android:textAllCaps="false" />
+        <Button
+            android:id="@+id/btnEditUnblockCommands"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/edit_unblock_commands"
+            android:textAllCaps="false"
+            android:layout_marginBottom="16dp" />
         <Button
             android:id="@+id/btnToggleOverlay"
             android:layout_width="match_parent"

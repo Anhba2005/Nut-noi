@@ -2,12 +2,12 @@ package com.example.nutnoi
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.InputType
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
@@ -15,37 +15,25 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import java.net.NetworkInterface
-import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var toggleButton: Button
-    private lateinit var applyButton: Button
     private lateinit var sizeLabel: TextView
     private lateinit var sizeSeekBar: SeekBar
-    private lateinit var deviceInfo: TextView
-    private lateinit var rootStatus: TextView
-    private lateinit var interfaceChoices: LinearLayout
-    private val interfaceCheckBoxes = mutableMapOf<String, CheckBox>()
     private val rootCheckExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         toggleButton = findViewById(R.id.btnToggleOverlay)
-        applyButton = findViewById(R.id.btnApplyFirewall)
         sizeLabel = findViewById(R.id.overlaySizeLabel)
-        sizeSeekBar = findViewById(R.id.overlaySizeSeekBar)
-        deviceInfo = findViewById(R.id.deviceInfo)
-        rootStatus = findViewById(R.id.rootStatus)
-        interfaceChoices = findViewById(R.id.interfaceChoices)
 
-        detectDeviceAndInterfaces()
+        findViewById<Button>(R.id.btnEditBlockCommands).setOnClickListener { editCommands(blocking = true) }
+        findViewById<Button>(R.id.btnEditUnblockCommands).setOnClickListener { editCommands(blocking = false) }
         toggleButton.setOnClickListener { toggleOverlayService() }
-        applyButton.setOnClickListener { confirmAndApplyFirewall() }
         setupSizeControl()
         updateToggleButton()
         checkRootStatus()
@@ -55,6 +43,7 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
         val initialSize = prefs.getInt(FloatingOverlayService.PREF_SIZE_DP, FloatingOverlayService.DEFAULT_SIZE_DP)
             .coerceIn(FloatingOverlayService.MIN_SIZE_DP, FloatingOverlayService.MAX_SIZE_DP)
+        sizeSeekBar = findViewById(R.id.overlaySizeSeekBar)
         sizeSeekBar.max = FloatingOverlayService.MAX_SIZE_DP - FloatingOverlayService.MIN_SIZE_DP
         sizeSeekBar.progress = initialSize - FloatingOverlayService.MIN_SIZE_DP
         updateSizeLabel(initialSize)
@@ -76,97 +65,36 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun detectDeviceAndInterfaces() {
-        val soc = detectSoc()
-        val allInterfaces = try {
-            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty().map { it.name }.distinct().sorted()
-        } catch (_: Exception) {
-            emptyList()
-        }
-        val candidates = allInterfaces.filter(::isLikelyNetworkInterface)
+    private fun editCommands(blocking: Boolean) {
         val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
-        val selected = prefs.getStringSet(FloatingOverlayService.PREF_SELECTED_INTERFACES, emptySet()).orEmpty()
-        interfaceChoices.removeAllViews()
-        interfaceCheckBoxes.clear()
-
-        if (candidates.isEmpty()) {
-            deviceInfo.text = getString(R.string.device_info_no_interfaces, soc, allInterfaces.joinToString(", ").ifBlank { getString(R.string.interfaces_none) })
-            applyButton.isEnabled = false
-            return
-        }
-        deviceInfo.text = getString(
-            R.string.device_info,
-            soc,
-            allInterfaces.joinToString(", ").ifBlank { getString(R.string.interfaces_none) }
-        )
-        candidates.forEach { iface ->
-            val box = CheckBox(this).apply {
-                text = getString(interfaceLabel(iface), iface)
-                isChecked = if (selected.isEmpty()) isCommonDefaultInterface(iface) else iface in selected
-                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            }
-            interfaceCheckBoxes[iface] = box
-            interfaceChoices.addView(box)
-        }
-        applyButton.isEnabled = true
-    }
-
-    private fun isLikelyNetworkInterface(name: String): Boolean {
-        val value = name.lowercase(Locale.ROOT)
-        return listOf("wlan", "wifi", "rmnet", "ccmni", "ccemni", "wwan", "pdp", "eth", "en").any(value::startsWith)
-    }
-
-    private fun isCommonDefaultInterface(name: String): Boolean {
-        val value = name.lowercase(Locale.ROOT)
-        return value.startsWith("wlan") || value.startsWith("wifi") || value.startsWith("rmnet") ||
-            value.startsWith("ccmni") || value.startsWith("ccemni") || value.startsWith("wwan") || value.startsWith("pdp")
-    }
-
-    private fun interfaceLabel(name: String): Int {
-        val value = name.lowercase(Locale.ROOT)
-        return if (value.startsWith("wlan") || value.startsWith("wifi")) R.string.interface_wifi_label
-        else if (value.startsWith("rmnet") || value.startsWith("ccmni") || value.startsWith("ccemni") ||
-            value.startsWith("wwan") || value.startsWith("pdp")) R.string.interface_mobile_label
-        else R.string.interface_other_label
-    }
-
-    private fun detectSoc(): String {
-        val identifiers = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add(Build.SOC_MODEL.orEmpty())
-            add(Build.HARDWARE.orEmpty())
-            add(Build.BOARD.orEmpty())
-            add(Build.DEVICE.orEmpty())
-        }.joinToString(" ").lowercase(Locale.ROOT)
-        return when {
-            "mediatek" in identifiers || Regex("(^|[^a-z])mt[0-9]{3,5}([^0-9]|$)").containsMatchIn(identifiers) -> getString(R.string.soc_mediatek)
-            "qcom" in identifiers || "qualcomm" in identifiers || "snapdragon" in identifiers -> getString(R.string.soc_snapdragon)
-            else -> getString(R.string.soc_unknown)
-        }
-    }
-
-    private fun confirmAndApplyFirewall() {
-        if (!Settings.canDrawOverlays(this)) {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-            return
-        }
-        val selected = interfaceCheckBoxes.filterValues { it.isChecked }.keys
-        if (selected.isEmpty()) {
-            Toast.makeText(this, R.string.select_interface_first, Toast.LENGTH_LONG).show()
-            return
+        val key = if (blocking) FloatingOverlayService.PREF_BLOCK_COMMANDS else FloatingOverlayService.PREF_UNBLOCK_COMMANDS
+        val defaultText = if (blocking) Config.DEFAULT_BLOCK_COMMANDS else Config.DEFAULT_UNBLOCK_COMMANDS
+        val editor = EditText(this).apply {
+            setText(prefs.getString(key, defaultText) ?: defaultText)
+            minLines = 4
+            maxLines = 10
+            gravity = android.view.Gravity.TOP or android.view.Gravity.START
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
         AlertDialog.Builder(this)
-            .setTitle(R.string.firewall_warning_title)
-            .setMessage(R.string.firewall_global_warning)
+            .setTitle(if (blocking) R.string.edit_block_commands else R.string.edit_unblock_commands)
+            .setMessage(R.string.commands_editor_hint)
+            .setView(editor)
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.apply) { _, _ ->
-                getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE).edit()
-                    .putStringSet(FloatingOverlayService.PREF_SELECTED_INTERFACES, selected.toSet())
-                    .apply()
-                ContextCompat.startForegroundService(
-                    this,
-                    Intent(this, FloatingOverlayService::class.java)
-                        .setAction(FloatingOverlayService.ACTION_APPLY_FIREWALL)
-                )
+            .setPositiveButton(R.string.save) { _, _ ->
+                val blockText = if (blocking) editor.text.toString()
+                    else prefs.getString(FloatingOverlayService.PREF_BLOCK_COMMANDS, Config.DEFAULT_BLOCK_COMMANDS) ?: Config.DEFAULT_BLOCK_COMMANDS
+                val unblockText = if (blocking) prefs.getString(FloatingOverlayService.PREF_UNBLOCK_COMMANDS, Config.DEFAULT_UNBLOCK_COMMANDS) ?: Config.DEFAULT_UNBLOCK_COMMANDS
+                    else editor.text.toString()
+                try {
+                    Config.validateCommandPair(blockText, unblockText)
+                    prefs.edit().putString(key, editor.text.toString().trim()).apply()
+                    Toast.makeText(this, R.string.commands_saved, Toast.LENGTH_SHORT).show()
+                } catch (e: IllegalArgumentException) {
+                    Toast.makeText(this, e.message ?: getString(R.string.commands_invalid), Toast.LENGTH_LONG).show()
+                    editor.post { editCommands(blocking) }
+                }
             }
             .show()
     }
@@ -183,6 +111,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkRootStatus() {
+        val rootStatus = findViewById<TextView>(R.id.rootStatus)
         rootStatus.setText(R.string.root_status_checking)
         rootCheckExecutor.execute {
             val hasRoot = try {
@@ -195,9 +124,9 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (_: Exception) { false }
             runOnUiThread {
-                if (!isFinishing && ::rootStatus.isInitialized) {
-                    rootStatus.setText(if (hasRoot) R.string.root_status_available else R.string.root_status_unavailable)
-                }
+                if (!isFinishing) rootStatus.setText(
+                    if (hasRoot) R.string.root_status_available else R.string.root_status_unavailable
+                )
             }
         }
     }
@@ -208,7 +137,9 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun updateSizeLabel(sizeDp: Int) { sizeLabel.text = getString(R.string.overlay_size_value, sizeDp) }
+    private fun updateSizeLabel(sizeDp: Int) {
+        sizeLabel.text = getString(R.string.overlay_size_value, sizeDp)
+    }
 
     override fun onResume() { super.onResume(); updateToggleButton() }
     override fun onDestroy() { rootCheckExecutor.shutdownNow(); super.onDestroy() }

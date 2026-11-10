@@ -69,15 +69,11 @@ class FloatingOverlayService : Service() {
         startForeground(NOTIFICATION_ID, createNotification())
         if (overlayView == null) showOverlay()
         isRunning = true
-
-        when (intent?.action) {
-            ACTION_UPDATE_SIZE -> {
-                val sizeDp = intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp())
-                    .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
-                getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
-                updateOverlaySize(sizeDp)
-            }
-            ACTION_APPLY_FIREWALL -> applySelectedFirewall()
+        if (intent?.action == ACTION_UPDATE_SIZE) {
+            val sizeDp = intent.getIntExtra(EXTRA_SIZE_DP, readSizeDp())
+                .coerceIn(MIN_SIZE_DP, MAX_SIZE_DP)
+            getPreferences().edit().putInt(PREF_SIZE_DP, sizeDp).apply()
+            updateOverlaySize(sizeDp)
         }
         return START_STICKY
     }
@@ -155,50 +151,25 @@ class FloatingOverlayService : Service() {
         }
     }
 
-    private fun selectedInterfaces(): List<String> =
-        getPreferences().getStringSet(PREF_SELECTED_INTERFACES, emptySet())?.toList().orEmpty()
-
-    private fun applySelectedFirewall() {
-        val selected = selectedInterfaces()
-        if (selected.isEmpty()) {
-            Toast.makeText(this, R.string.select_interface_first, Toast.LENGTH_LONG).show()
-            return
-        }
+    private fun toggleFirewall() {
         val prefs = getPreferences()
-        val previouslyApplied = prefs.getStringSet(PREF_APPLIED_INTERFACES, emptySet())?.toList().orEmpty()
-        val commands = buildList {
-            if (prefs.getBoolean(PREF_BLOCKED, false) && previouslyApplied.isNotEmpty()) {
-                addAll(Config.unblockCommands(previouslyApplied))
-            }
-            addAll(Config.blockCommands(selected))
+        val blocking = !isBlocked
+        val blockText = prefs.getString(PREF_BLOCK_COMMANDS, Config.DEFAULT_BLOCK_COMMANDS)
+            ?: Config.DEFAULT_BLOCK_COMMANDS
+        val unblockText = prefs.getString(PREF_UNBLOCK_COMMANDS, Config.DEFAULT_UNBLOCK_COMMANDS)
+            ?: Config.DEFAULT_UNBLOCK_COMMANDS
+        val commands = try {
+            Config.validateCommandPair(blockText, unblockText)
+            Config.parseCommands(if (blocking) blockText else unblockText, isBlocking = blocking)
+        } catch (e: IllegalArgumentException) {
+            Log.e(TAG, "Invalid saved firewall commands", e)
+            Toast.makeText(this, R.string.firewall_commands_invalid, Toast.LENGTH_LONG).show()
+            return
         }
         runFirewallCommands(commands) { success ->
             if (success) {
-                prefs.edit().putBoolean(PREF_BLOCKED, true)
-                    .putStringSet(PREF_APPLIED_INTERFACES, selected.toSet()).apply()
-                isBlocked = true
-                updateOverlayAppearance()
-            }
-        }
-    }
-
-    private fun toggleFirewall() {
-        val prefs = getPreferences()
-        if (!isBlocked) {
-            applySelectedFirewall()
-            return
-        }
-        val applied = prefs.getStringSet(PREF_APPLIED_INTERFACES, emptySet())?.toList().orEmpty()
-        if (applied.isEmpty()) {
-            isBlocked = false
-            prefs.edit().putBoolean(PREF_BLOCKED, false).apply()
-            updateOverlayAppearance()
-            return
-        }
-        runFirewallCommands(Config.unblockCommands(applied)) { success ->
-            if (success) {
-                prefs.edit().putBoolean(PREF_BLOCKED, false).remove(PREF_APPLIED_INTERFACES).apply()
-                isBlocked = false
+                isBlocked = blocking
+                prefs.edit().putBoolean(PREF_BLOCKED, isBlocked).apply()
                 updateOverlayAppearance()
             }
         }
@@ -217,9 +188,12 @@ class FloatingOverlayService : Service() {
             val success = try {
                 process = ProcessBuilder("su").redirectErrorStream(true).start()
                 BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
-                    writer.write("set -e"); writer.newLine()
-                    commands.forEach { writer.write(it); writer.newLine() }
-                    writer.write("exit"); writer.newLine(); writer.flush()
+                    writer.write("status=0"); writer.newLine()
+                    commands.forEach { command ->
+                        writer.write("$command || status=1")
+                        writer.newLine()
+                    }
+                    writer.write("exit $status"); writer.newLine(); writer.flush()
                 }
                 if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                     process.destroyForcibly()
@@ -227,11 +201,11 @@ class FloatingOverlayService : Service() {
                 } else {
                     val output = process.inputStream.bufferedReader().use { it.readText() }
                     val ok = process.exitValue() == 0
-                    if (!ok) Log.e(TAG, "Global firewall command failed: $output")
+                    if (!ok) Log.e(TAG, "Firewall command failed: $output")
                     ok
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Could not apply global firewall rules", e)
+                Log.e(TAG, "Could not run firewall commands", e)
                 process?.destroyForcibly()
                 false
             }
@@ -283,11 +257,18 @@ class FloatingOverlayService : Service() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(longPressRunnable)
-        val prefs = getPreferences()
-        val applied = prefs.getStringSet(PREF_APPLIED_INTERFACES, emptySet())?.toList().orEmpty()
-        if (prefs.getBoolean(PREF_BLOCKED, false) && applied.isNotEmpty()) {
-            commandExecutor.execute { runFirewallCommandsForCleanup(Config.unblockCommands(applied)) }
-            prefs.edit().putBoolean(PREF_BLOCKED, false).remove(PREF_APPLIED_INTERFACES).apply()
+        if (isBlocked) {
+            val prefs = getPreferences()
+            val blockText = prefs.getString(PREF_BLOCK_COMMANDS, Config.DEFAULT_BLOCK_COMMANDS)
+                ?: Config.DEFAULT_BLOCK_COMMANDS
+            val unblockText = prefs.getString(PREF_UNBLOCK_COMMANDS, Config.DEFAULT_UNBLOCK_COMMANDS)
+                ?: Config.DEFAULT_UNBLOCK_COMMANDS
+            runCatching {
+                Config.validateCommandPair(blockText, unblockText)
+                val commands = Config.parseCommands(unblockText, isBlocking = false)
+                commandExecutor.execute { runCleanupCommands(commands) }
+                prefs.edit().putBoolean(PREF_BLOCKED, false).apply()
+            }.onFailure { Log.e(TAG, "Could not validate firewall cleanup commands", it) }
         }
         overlayView?.let { runCatching { windowManager.removeView(it) } }
         overlayView = null
@@ -297,17 +278,17 @@ class FloatingOverlayService : Service() {
         super.onDestroy()
     }
 
-    private fun runFirewallCommandsForCleanup(commands: List<String>) {
+    private fun runCleanupCommands(commands: List<String>) {
         var process: Process? = null
         try {
             process = ProcessBuilder("su").redirectErrorStream(true).start()
             BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
-                commands.forEach { writer.write(it); writer.newLine() }
+                commands.forEach { writer.write("$it || true"); writer.newLine() }
                 writer.write("exit"); writer.newLine(); writer.flush()
             }
             if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) process.destroyForcibly()
         } catch (e: Exception) {
-            Log.e(TAG, "Could not remove global firewall rules during shutdown", e)
+            Log.e(TAG, "Could not remove firewall rules during shutdown", e)
             process?.destroyForcibly()
         }
     }
@@ -317,12 +298,11 @@ class FloatingOverlayService : Service() {
     companion object {
         const val ACTION_STOP = "com.example.nutnoi.action.STOP_OVERLAY"
         const val ACTION_UPDATE_SIZE = "com.example.nutnoi.action.UPDATE_OVERLAY_SIZE"
-        const val ACTION_APPLY_FIREWALL = "com.example.nutnoi.action.APPLY_FIREWALL"
-        const val EXTRA_SIZE_DP = "overlay_size_dp"
         const val PREFERENCES = "overlay_position"
         const val PREF_SIZE_DP = "size_dp"
-        const val PREF_SELECTED_INTERFACES = "selected_interfaces"
-        const val PREF_APPLIED_INTERFACES = "applied_interfaces"
+        const val PREF_BLOCK_COMMANDS = "block_commands"
+        const val PREF_UNBLOCK_COMMANDS = "unblock_commands"
+        const val EXTRA_SIZE_DP = "overlay_size_dp"
         const val DEFAULT_SIZE_DP = 72
         const val MIN_SIZE_DP = 48
         const val MAX_SIZE_DP = 144
