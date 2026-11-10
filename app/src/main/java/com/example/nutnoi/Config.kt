@@ -5,30 +5,28 @@ object Config {
     private const val WIFI_INTERFACE = "wlan0"
     private const val MOBILE_INTERFACE = "ccmni+"
 
-    fun blockAppCommands(uid: Int): List<String> {
+    fun blockAppCommands(uid: Int, blockWifi: Boolean, blockMobile: Boolean): List<String> {
         require(uid >= 0) { "UID must be non-negative" }
-        return listOf(
-            addRule("iptables", WIFI_INTERFACE, uid),
-            addRule("ip6tables", WIFI_INTERFACE, uid),
-            addRule("iptables", MOBILE_INTERFACE, uid),
-            addRule("ip6tables", MOBILE_INTERFACE, uid)
-        )
+        return selectedInterfaces(blockWifi, blockMobile).flatMap { iface ->
+            listOf("iptables", "ip6tables").map { tool -> addRule(tool, iface, uid) }
+        }
     }
 
-    fun unblockAppCommands(uid: Int): List<String> {
+    fun unblockAppCommands(uid: Int, blockWifi: Boolean, blockMobile: Boolean): List<String> {
         require(uid >= 0) { "UID must be non-negative" }
-        return listOf(
-            removeRule("iptables", WIFI_INTERFACE, uid),
-            removeRule("ip6tables", WIFI_INTERFACE, uid),
-            removeRule("iptables", MOBILE_INTERFACE, uid),
-            removeRule("ip6tables", MOBILE_INTERFACE, uid)
-        )
+        return selectedInterfaces(blockWifi, blockMobile).flatMap { iface ->
+            listOf("iptables", "ip6tables").map { tool -> removeRule(tool, iface, uid) }
+        }
     }
 
-    private fun addRule(tool: String, iface: String, uid: Int): String {
-        val rule = "$tool -o $iface -m owner --uid-owner $uid -j DROP"
-        return "$tool -C OUTPUT -o $iface -m owner --uid-owner $uid -j DROP || $tool -I OUTPUT 1 -o $iface -m owner --uid-owner $uid -j DROP"
+    private fun selectedInterfaces(blockWifi: Boolean, blockMobile: Boolean): List<String> = buildList {
+        if (blockWifi) add(WIFI_INTERFACE)
+        if (blockMobile) add(MOBILE_INTERFACE)
     }
+
+    private fun addRule(tool: String, iface: String, uid: Int): String =
+        "$tool -C OUTPUT -o $iface -m owner --uid-owner $uid -j DROP || " +
+            "$tool -I OUTPUT 1 -o $iface -m owner --uid-owner $uid -j DROP"
 
     private fun removeRule(tool: String, iface: String, uid: Int): String =
         "while $tool -D OUTPUT -o $iface -m owner --uid-owner $uid -j DROP 2>/dev/null; do :; done"

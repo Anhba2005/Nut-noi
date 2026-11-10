@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -24,6 +25,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var selectedAppLabel: TextView
     private lateinit var sizeLabel: TextView
     private lateinit var sizeSeekBar: SeekBar
+    private lateinit var wifiCheckBox: CheckBox
+    private lateinit var mobileDataCheckBox: CheckBox
     private lateinit var rootStatus: TextView
     private val rootCheckExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
@@ -36,7 +39,15 @@ class MainActivity : AppCompatActivity() {
         selectedAppLabel = findViewById(R.id.selectedAppLabel)
         sizeLabel = findViewById(R.id.overlaySizeLabel)
         sizeSeekBar = findViewById(R.id.overlaySizeSeekBar)
+        wifiCheckBox = findViewById(R.id.blockWifiCheckBox)
+        mobileDataCheckBox = findViewById(R.id.blockMobileDataCheckBox)
         rootStatus = findViewById(R.id.rootStatus)
+
+        val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
+        wifiCheckBox.isChecked = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_WIFI, true)
+        mobileDataCheckBox.isChecked = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_MOBILE, true)
+        wifiCheckBox.setOnCheckedChangeListener { _, _ -> updateNetworkOptions(prefs) }
+        mobileDataCheckBox.setOnCheckedChangeListener { _, _ -> updateNetworkOptions(prefs) }
 
         toggleButton.setOnClickListener {
             if (!Settings.canDrawOverlays(this)) {
@@ -59,7 +70,6 @@ class MainActivity : AppCompatActivity() {
 
         chooseAppButton.setOnClickListener { showAppPicker() }
 
-        val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
         val initialSize = prefs.getInt(
             FloatingOverlayService.PREF_SIZE_DP,
             FloatingOverlayService.DEFAULT_SIZE_DP
@@ -89,6 +99,27 @@ class MainActivity : AppCompatActivity() {
 
         updateSelectedAppLabel()
         updateToggleButton()
+    }
+
+    private fun updateNetworkOptions(prefs: android.content.SharedPreferences) {
+        val oldBlockWifi = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_WIFI, true)
+        val oldBlockMobile = prefs.getBoolean(FloatingOverlayService.PREF_BLOCK_MOBILE, true)
+        val newBlockWifi = wifiCheckBox.isChecked
+        val newBlockMobile = mobileDataCheckBox.isChecked
+        if (oldBlockWifi == newBlockWifi && oldBlockMobile == newBlockMobile) return
+
+        prefs.edit()
+            .putBoolean(FloatingOverlayService.PREF_BLOCK_WIFI, newBlockWifi)
+            .putBoolean(FloatingOverlayService.PREF_BLOCK_MOBILE, newBlockMobile)
+            .apply()
+
+        if (FloatingOverlayService.isRunning) {
+            val intent = Intent(this, FloatingOverlayService::class.java)
+                .setAction(FloatingOverlayService.ACTION_UPDATE_NETWORKS)
+                .putExtra(FloatingOverlayService.EXTRA_OLD_BLOCK_WIFI, oldBlockWifi)
+                .putExtra(FloatingOverlayService.EXTRA_OLD_BLOCK_MOBILE, oldBlockMobile)
+            startService(intent)
+        }
     }
 
     override fun onResume() {

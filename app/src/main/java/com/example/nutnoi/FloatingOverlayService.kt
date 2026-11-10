@@ -73,6 +73,26 @@ class FloatingOverlayService : Service() {
                 updateOverlaySize(sizeDp)
                 return START_STICKY
             }
+            ACTION_UPDATE_NETWORKS -> {
+                val oldBlockWifi = intent.getBooleanExtra(
+                    EXTRA_OLD_BLOCK_WIFI,
+                    getPreferences().getBoolean(PREF_BLOCK_WIFI, true)
+                )
+                val oldBlockMobile = intent.getBooleanExtra(
+                    EXTRA_OLD_BLOCK_MOBILE,
+                    getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
+                )
+                val uid = if (isBlocked) activeUid else null
+                if (uid != null) {
+                    val newBlockWifi = getPreferences().getBoolean(PREF_BLOCK_WIFI, true)
+                    val newBlockMobile = getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
+                    commandExecutor.execute {
+                        applyFirewallRules(Config.unblockAppCommands(uid, oldBlockWifi, oldBlockMobile))
+                        applyFirewallRules(Config.blockAppCommands(uid, newBlockWifi, newBlockMobile))
+                    }
+                }
+                return START_STICKY
+            }
             ACTION_SELECT_APP -> {
                 clearActiveBlock()
                 return START_STICKY
@@ -124,7 +144,7 @@ class FloatingOverlayService : Service() {
         windowManager.addView(view, layoutParams)
 
         if (isBlocked) {
-            activeUid?.let { uid -> commandExecutor.execute { applyFirewallRules(Config.blockAppCommands(uid)) } }
+            activeUid?.let { uid -> commandExecutor.execute { applyFirewallRules(blockCommands(uid)) } }
                 ?: clearBlockedPreference()
         }
 
@@ -185,7 +205,7 @@ class FloatingOverlayService : Service() {
             activeUid = null
             clearBlockedPreference()
             label.setBackgroundResource(R.drawable.floating_button_red)
-            if (uid != null) commandExecutor.execute { applyFirewallRules(Config.unblockAppCommands(uid)) }
+            if (uid != null) commandExecutor.execute { applyFirewallRules(unblockCommands(uid)) }
             else showFirewallResult(false)
             return
         }
@@ -204,13 +224,13 @@ class FloatingOverlayService : Service() {
             .putInt(PREF_BLOCKED_UID, uid)
             .apply()
         label.setBackgroundResource(R.drawable.floating_button_blue)
-        commandExecutor.execute { applyFirewallRules(Config.blockAppCommands(uid)) }
+        commandExecutor.execute { applyFirewallRules(blockCommands(uid)) }
     }
 
     private fun clearActiveBlock() {
         val uid = activeUid
         if (isBlocked && uid != null) {
-            commandExecutor.execute { applyFirewallRules(Config.unblockAppCommands(uid)) }
+            commandExecutor.execute { applyFirewallRules(unblockCommands(uid)) }
         }
         isBlocked = false
         activeUid = null
@@ -218,6 +238,18 @@ class FloatingOverlayService : Service() {
         overlayView?.findViewById<TextView>(R.id.floatingLabel)
             ?.setBackgroundResource(R.drawable.floating_button_red)
     }
+
+    private fun blockCommands(uid: Int): List<String> = Config.blockAppCommands(
+        uid,
+        getPreferences().getBoolean(PREF_BLOCK_WIFI, true),
+        getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
+    )
+
+    private fun unblockCommands(uid: Int): List<String> = Config.unblockAppCommands(
+        uid,
+        getPreferences().getBoolean(PREF_BLOCK_WIFI, true),
+        getPreferences().getBoolean(PREF_BLOCK_MOBILE, true)
+    )
 
     private fun clearBlockedPreference() {
         getPreferences().edit()
@@ -333,7 +365,7 @@ class FloatingOverlayService : Service() {
         val uidToUnblock = if (isBlocked) activeUid else null
         if (uidToUnblock != null) {
             clearBlockedPreference()
-            commandExecutor.execute { applyFirewallRules(Config.unblockAppCommands(uidToUnblock)) }
+            commandExecutor.execute { applyFirewallRules(unblockCommands(uidToUnblock)) }
         }
         overlayView?.let { view -> runCatching { windowManager.removeView(view) } }
         overlayView = null
@@ -349,7 +381,12 @@ class FloatingOverlayService : Service() {
         const val ACTION_STOP = "com.example.nutnoi.action.STOP_OVERLAY"
         const val ACTION_UPDATE_SIZE = "com.example.nutnoi.action.UPDATE_OVERLAY_SIZE"
         const val ACTION_SELECT_APP = "com.example.nutnoi.action.SELECT_APP"
+        const val ACTION_UPDATE_NETWORKS = "com.example.nutnoi.action.UPDATE_NETWORKS"
         const val EXTRA_SIZE_DP = "overlay_size_dp"
+        const val EXTRA_OLD_BLOCK_WIFI = "old_block_wifi"
+        const val EXTRA_OLD_BLOCK_MOBILE = "old_block_mobile"
+        const val PREF_BLOCK_WIFI = "block_wifi"
+        const val PREF_BLOCK_MOBILE = "block_mobile"
         const val PREFERENCES = "overlay_position"
         const val PREF_SIZE_DP = "size_dp"
         const val PREF_SELECTED_PACKAGE = "selected_package"
