@@ -18,12 +18,10 @@
     <string name="root_status_checking">Đang kiểm tra quyền root…</string>
     <string name="root_status_available">Trạng thái root: Đã cấp quyền.</string>
     <string name="root_status_unavailable">Trạng thái root: Chưa có quyền hoặc thiết bị chưa root.</string>
-    <string name="edit_block_commands">Sửa lệnh khi nút xanh (chặn)</string>
-    <string name="edit_unblock_commands">Sửa lệnh khi nút đỏ (gỡ chặn)</string>
-    <string name="commands_editor_hint">Nhập các câu lệnh shell/iptables tùy ý của bạn vào đây. Mỗi dòng tương ứng với một câu lệnh thực thi.</string>
+    <string name="edit_block_commands">Lệnh khi nút xanh (chặn)</string>
+    <string name="edit_unblock_commands">Lệnh khi nút đỏ (gỡ chặn)</string>
+    <string name="save_configuration">Lưu cấu hình</string>
     <string name="commands_saved">Đã lưu cấu hình lệnh thành công.</string>
-    <string name="commands_invalid">Lệnh trống hoặc cấu trúc không xử lý được.</string>
-    <string name="firewall_commands_invalid">Lệnh đã lưu gặp lỗi khi xử lý. Hãy kiểm tra lại cấu hình.</string>
-    <string name="firewall_warning_short">Cảnh báo: Lệnh thực thi trực tiếp dưới quyền tối cao (root), hãy chắc chắn cấu hình của bạn là chính xác.</string>
+    <string name="firewall_warning_short">Cảnh báo: Lệnh thực thi trực tiếp dưới quyền root; hãy đảm bảo cấu hình chính xác.</string>
     <string name="save">Lưu</string>
 </resources>

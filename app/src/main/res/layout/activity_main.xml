@@ -4,12 +4,14 @@
     android:layout_height="match_parent"
     android:fillViewport="true"
     android:background="#F5F7FA">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp"
         android:gravity="center_vertical">
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -18,6 +20,7 @@
             android:textSize="24sp"
             android:textStyle="bold"
             android:layout_marginBottom="16dp" />
+
         <TextView
             android:id="@+id/rootStatus"
             android:layout_width="match_parent"
@@ -26,6 +29,7 @@
             android:textColor="#1F2937"
             android:textSize="16sp"
             android:paddingBottom="16dp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -33,19 +37,51 @@
             android:textColor="#B91C1C"
             android:textSize="14sp"
             android:paddingBottom="12dp" />
-        <Button
-            android:id="@+id/btnEditBlockCommands"
+
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/edit_block_commands"
-            android:textAllCaps="false" />
-        <Button
-            android:id="@+id/btnEditUnblockCommands"
+            android:hint="@string/edit_block_commands"
+            android:layout_marginBottom="12dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/blockCommandsInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="top|start"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:minLines="4"
+                android:maxLines="8"
+                android:scrollbars="vertical" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/edit_unblock_commands"
+            android:hint="@string/edit_unblock_commands"
+            android:layout_marginBottom="12dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/unblockCommandsInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="top|start"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:minLines="4"
+                android:maxLines="8"
+                android:scrollbars="vertical" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <Button
+            android:id="@+id/btnSaveCommands"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/save_configuration"
             android:textAllCaps="false"
             android:layout_marginBottom="16dp" />
+
         <Button
             android:id="@+id/btnToggleOverlay"
             android:layout_width="match_parent"
@@ -53,6 +89,7 @@
             android:text="@string/enable_button"
             android:textAllCaps="false"
             android:layout_marginBottom="24dp" />
+
         <TextView
             android:id="@+id/overlaySizeLabel"
             android:layout_width="match_parent"
@@ -62,6 +99,7 @@
             android:textColor="#1F2937"
             android:textSize="16sp"
             android:paddingBottom="8dp" />
+
         <SeekBar
             android:id="@+id/overlaySizeSeekBar"
             android:layout_width="match_parent"
