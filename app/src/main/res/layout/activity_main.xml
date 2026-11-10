@@ -39,7 +39,7 @@
             android:textSize="14sp"
             android:paddingBottom="12dp" />
 
-        <!-- Ô NHẬP LỆNH NÚT XANH (Đã sửa hiển thị) -->
+        <!-- Ô NHẬP LỆNH NÚT XANH -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -61,7 +61,7 @@
                 android:textColorHint="#9CA3AF" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Ô NHẬP LỆNH NÚT ĐỎ (Đã sửa hiển thị) -->
+        <!-- Ô NHẬP LỆNH NÚT ĐỎ -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
