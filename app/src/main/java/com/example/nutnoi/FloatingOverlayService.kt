@@ -1,4 +1,4 @@
-package com.example.nutnoi
+package com.anhba.launcher
 
 import android.app.Notification
 import android.app.NotificationChannel

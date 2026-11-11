@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nutnoi"
+    namespace = "com.anhba.launcher"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.nutnoi"
+        applicationId = "com.anhba.launcher"
         minSdk = 28
         targetSdk = 34
         versionCode = 1
-        versionName = "2.0.0.5"
+        versionName = "1.0.0"
     }
 
     buildTypes {

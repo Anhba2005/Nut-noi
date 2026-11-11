@@ -1,4 +1,4 @@
-package com.example.nutnoi
+package com.anhba.launcher
 
 import android.content.Intent
 import android.net.Uri
