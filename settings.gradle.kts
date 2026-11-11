@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Nut-noi"
+rootProject.name = "Launcher"
 include(":app")
