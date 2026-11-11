@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nutnoi"
+    namespace = "com.anhba.launcher"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.nutnoi"
+        applicationId = "com.anhba.launcher"
         minSdk = 28
         targetSdk = 34
         versionCode = 1
@@ -42,5 +42,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-ktx:1.9.1")
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
     implementation("com.google.android.material:material:1.12.0")
 }

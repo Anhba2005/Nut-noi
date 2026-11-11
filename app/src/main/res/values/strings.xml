@@ -3,7 +3,11 @@
     <string name="app_name">Pixel Launcher</string>
     <string name="search_hint">Tìm kiếm ứng dụng hoặc trên web</string>
     <string name="search">Tìm kiếm</string>
-    <string name="all_apps">Tất cả ứng dụng</string>
+    <string name="all_apps">Ứng dụng · vuốt sang hai bên để lướt</string>
+    <string name="apps_pages_description">Các trang ứng dụng, vuốt ngang để chuyển trang</string>
+    <string name="page_indicator">%1$d / %2$d</string>
+    <string name="page_indicator_accessibility">Trang %1$d trên %2$d</string>
+    <string name="no_apps_found">Không tìm thấy ứng dụng</string>
     <string name="home_instructions">Chọn Pixel Launcher làm ứng dụng Màn hình chính mặc định trong Cài đặt để sử dụng bằng nút Home.</string>
     <string name="app_unavailable">Không thể mở ứng dụng này.</string>
     <string name="browser_unavailable">Không tìm thấy trình duyệt để tìm kiếm.</string>

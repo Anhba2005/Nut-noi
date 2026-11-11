@@ -8,12 +8,13 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
+        android:minHeight="match_parent"
         android:orientation="vertical"
         android:paddingStart="20dp"
         android:paddingTop="48dp"
         android:paddingEnd="20dp"
-        android:paddingBottom="20dp">
+        android:paddingBottom="16dp">
 
         <TextClock
             android:layout_width="wrap_content"
@@ -37,7 +38,7 @@
 
         <Space
             android:layout_width="match_parent"
-            android:layout_height="28dp" />
+            android:layout_height="24dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -87,14 +88,36 @@
                 android:textSize="28sp" />
         </LinearLayout>
 
-        <Space
+        <TextView
             android:layout_width="match_parent"
-            android:layout_height="28dp" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="8dp"
+            android:text="@string/all_apps"
+            android:textColor="#33363A"
+            android:textSize="17sp" />
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/appsPager"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:contentDescription="@string/apps_pages_description" />
+
+        <TextView
+            android:id="@+id/pageIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="1 / 1"
+            android:textColor="#777A7D"
+            android:textSize="12sp" />
 
         <LinearLayout
             android:id="@+id/dock"
             android:layout_width="match_parent"
-            android:layout_height="88dp"
+            android:layout_height="80dp"
             android:background="@drawable/dock_background"
             android:gravity="center"
             android:orientation="horizontal"
@@ -104,27 +127,10 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="10dp"
-            android:text="@string/all_apps"
-            android:textColor="#33363A"
-            android:textSize="17sp"
-            android:textStyle="normal" />
-
-        <GridLayout
-            android:id="@+id/appsGrid"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="4"
-            android:useDefaultMargins="false" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             android:gravity="center"
             android:text="@string/home_instructions"
             android:textColor="#777A7D"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 </ScrollView>
