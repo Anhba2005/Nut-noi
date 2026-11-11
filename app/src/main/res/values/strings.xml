@@ -27,4 +27,9 @@
     <string name="firewall_warning_short">Cảnh báo: các lệnh cấu hình có thể chạy với quyền hệ thống cao. Hãy chỉ nhập lệnh bạn tin tưởng.</string>
     <string name="save_configuration">Lưu cấu hình</string>
     <string name="save">Lưu</string>
+    <string name="search_hint">Tìm kiếm ứng dụng</string>
+    <string name="search">Tìm kiếm</string>
+    <string name="all_apps">Tất cả ứng dụng</string>
+    <string name="apps_pages_description">Các trang ứng dụng</string>
+    <string name="home_instructions">Chạm vào ứng dụng để mở</string>
 </resources>
