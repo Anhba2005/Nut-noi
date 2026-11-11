@@ -1,4 +1,4 @@
-package com.example.nutnoi
+package com.anhba.launcher
 
 /** Default firewall command fields start empty so users can enter their own configuration. */
 object Config {

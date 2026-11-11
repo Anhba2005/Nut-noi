@@ -1,4 +1,4 @@
-package com.example.nutnoi
+package com.anhba.launcher
 
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
@@ -147,13 +147,12 @@ class MainActivity : AppCompatActivity() {
             contentDescription = app.label
             setOnClickListener { launchApp(app) }
         }
-        val iconSize = if (compact) 48 else 48
         val icon = ImageView(this).apply {
             setImageDrawable(app.icon)
             scaleType = ImageView.ScaleType.FIT_CENTER
             contentDescription = app.label
         }
-        cell.addView(icon, LinearLayout.LayoutParams(dp(iconSize), dp(iconSize)))
+        cell.addView(icon, LinearLayout.LayoutParams(dp(48), dp(48)))
         if (!compact) {
             val label = TextView(this).apply {
                 text = app.label
@@ -207,10 +206,7 @@ class MainActivity : AppCompatActivity() {
         private var pageApps: List<LauncherApp> = emptyList()
         private val appsPerPage get() = columns * rowsPerPage
 
-        val itemCountPages: Int
-            get() = maxOf(1, ceil(pageApps.size.toDouble() / appsPerPage).toInt())
-
-        override fun getItemCount(): Int = itemCountPages
+        override fun getItemCount(): Int = maxOf(1, ceil(pageApps.size.toDouble() / appsPerPage).toInt())
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PageHolder {
             val grid = GridLayout(this@MainActivity).apply {
@@ -228,8 +224,7 @@ class MainActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: PageHolder, position: Int) {
             val grid = holder.grid
             grid.removeAllViews()
-            val start = position * appsPerPage
-            val page = pageApps.drop(start).take(appsPerPage)
+            val page = pageApps.drop(position * appsPerPage).take(appsPerPage)
             page.forEachIndexed { index, app ->
                 val params = GridLayout.LayoutParams(
                     GridLayout.spec(index / columns),

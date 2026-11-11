@@ -1,4 +1,4 @@
-package com.example.nutnoi
+package com.anhba.launcher
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -235,7 +235,7 @@ class FloatingOverlayService : Service() {
     private fun dpToPx(sizeDp: Int) = (sizeDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
 
     private fun createNotification(): Notification {
-        val channelId = "nutnoi_overlay_service"
+        val channelId = "launcher_overlay_service"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
