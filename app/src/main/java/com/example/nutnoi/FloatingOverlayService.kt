@@ -193,7 +193,7 @@ class FloatingOverlayService : Service() {
                         writer.write("$command || status=1")
                         writer.newLine()
                     }
-                    writer.write("exit \\$status"); writer.newLine(); writer.flush()
+                    writer.write("exit \$status"); writer.newLine(); writer.flush()
                 }
                 if (!process.waitFor(ROOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                     process.destroyForcibly()
@@ -235,7 +235,7 @@ class FloatingOverlayService : Service() {
     private fun dpToPx(sizeDp: Int) = (sizeDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
 
     private fun createNotification(): Notification {
-        val channelId = "launcher_overlay_service"
+        val channelId = "nutnoi_overlay_service"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -296,8 +296,8 @@ class FloatingOverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        const val ACTION_STOP = "com.anhba.launcher.action.STOP_OVERLAY"
-        const val ACTION_UPDATE_SIZE = "com.anhba.launcher.action.UPDATE_OVERLAY_SIZE"
+        const val ACTION_STOP = "com.example.nutnoi.action.STOP_OVERLAY"
+        const val ACTION_UPDATE_SIZE = "com.example.nutnoi.action.UPDATE_OVERLAY_SIZE"
         const val PREFERENCES = "overlay_position"
         const val PREF_SIZE_DP = "size_dp"
         const val PREF_BLOCK_COMMANDS = "block_commands"
