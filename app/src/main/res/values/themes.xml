@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.NutNoi" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.Launcher" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">#5E81AC</item>
         <item name="colorPrimaryDark">#F4F2ED</item>
         <item name="colorAccent">#5E81AC</item>
