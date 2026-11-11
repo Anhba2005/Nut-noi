@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NutNoi</string>
+    <string name="app_name">Pixel Launcher</string>
+    <string name="search_hint">Tìm kiếm ứng dụng hoặc trên web</string>
+    <string name="search">Tìm kiếm</string>
+    <string name="all_apps">Tất cả ứng dụng</string>
+    <string name="home_instructions">Chọn Pixel Launcher làm ứng dụng Màn hình chính mặc định trong Cài đặt để sử dụng bằng nút Home.</string>
+    <string name="app_unavailable">Không thể mở ứng dụng này.</string>
+    <string name="browser_unavailable">Không tìm thấy trình duyệt để tìm kiếm.</string>
     <string name="enable_button">Bật nút nổi</string>
     <string name="disable_button">Tắt nút nổi</string>
     <string name="notification_channel_name">Dịch vụ nút nổi</string>

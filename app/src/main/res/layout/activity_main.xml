@@ -1,106 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#F4F2ED"
     android:fillViewport="true"
-    android:background="#F5F7FA">
+    android:clipToPadding="false">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp"
-        android:gravity="center_vertical">
+        android:paddingStart="20dp"
+        android:paddingTop="48dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="20dp">
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:textColor="#202124"
+            android:textSize="56sp"
+            android:fontFamily="sans"
+            android:letterSpacing="-0.03"
+            android:importantForAccessibility="yes" />
 
         <TextView
-            android:layout_width="match_parent"
+            android:id="@+id/dateLabel"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/greeting"
-            android:textColor="#1F2937"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginTop="2dp"
+            android:textColor="#55585B"
+            android:textSize="15sp"
+            android:text="Monday, 1 January" />
 
-        <TextView
-            android:id="@+id/rootStatus"
+        <Space
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/root_status_checking"
-            android:textColor="#1F2937"
-            android:textSize="16sp"
-            android:paddingBottom="16dp" />
+            android:layout_height="28dp" />
 
-        <com.google.android.material.textfield.TextInputLayout
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:boxStrokeColor="@color/command_box_stroke"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            android:layout_height="56dp"
+            android:background="@drawable/search_bar_background"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="10dp">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/blockCommandsInput"
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="24dp"
                 android:layout_height="wrap_content"
-                android:gravity="top|start"
-                android:inputType="textMultiLine|textNoSuggestions"
-                android:minLines="4"
-                android:maxLines="8"
-                android:scrollbars="vertical"
-                android:textColor="#1F2937"
-                android:textStyle="bold" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:gravity="center"
+                android:text="G"
+                android:textColor="#4285F4"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:contentDescription="Google" />
 
-        <com.google.android.material.textfield.TextInputLayout
+            <EditText
+                android:id="@+id/searchInput"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:hint="@string/search_hint"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:paddingStart="12dp"
+                android:paddingEnd="8dp"
+                android:singleLine="true"
+                android:textColor="#202124"
+                android:textColorHint="#73777B"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/searchAction"
+                android:layout_width="40dp"
+                android:layout_height="match_parent"
+                android:clickable="true"
+                android:contentDescription="@string/search"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="⌕"
+                android:textColor="#5F6368"
+                android:textSize="28sp" />
+        </LinearLayout>
+
+        <Space
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:boxStrokeColor="@color/command_box_stroke"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            android:layout_height="28dp" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/unblockCommandsInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="top|start"
-                android:inputType="textMultiLine|textNoSuggestions"
-                android:minLines="4"
-                android:maxLines="8"
-                android:scrollbars="vertical"
-                android:textColor="#1F2937"
-                android:textStyle="bold" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <Button
-            android:id="@+id/btnSaveCommands"
+        <LinearLayout
+            android:id="@+id/dock"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/save_configuration"
-            android:textAllCaps="false"
-            android:layout_marginBottom="16dp" />
-
-        <Button
-            android:id="@+id/btnToggleOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/enable_button"
-            android:textAllCaps="false"
-            android:layout_marginBottom="24dp" />
+            android:layout_height="88dp"
+            android:background="@drawable/dock_background"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp" />
 
         <TextView
-            android:id="@+id/overlaySizeLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:labelFor="@id/overlaySizeSeekBar"
-            android:text="@string/overlay_size_value_default"
-            android:textColor="#1F2937"
-            android:textSize="16sp"
-            android:paddingBottom="8dp" />
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="10dp"
+            android:text="@string/all_apps"
+            android:textColor="#33363A"
+            android:textSize="17sp"
+            android:textStyle="normal" />
 
-        <SeekBar
-            android:id="@+id/overlaySizeSeekBar"
+        <GridLayout
+            android:id="@+id/appsGrid"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:contentDescription="@string/overlay_size_label" />
+            android:columnCount="4"
+            android:useDefaultMargins="false" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="@string/home_instructions"
+            android:textColor="#777A7D"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>
