@@ -1,4 +1,4 @@
-package com.anhba.launcher
+package com.nutnoi
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -296,8 +296,8 @@ class FloatingOverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        const val ACTION_STOP = "com.example.nutnoi.action.STOP_OVERLAY"
-        const val ACTION_UPDATE_SIZE = "com.example.nutnoi.action.UPDATE_OVERLAY_SIZE"
+        const val ACTION_STOP = "com.nutnoi.action.STOP_OVERLAY"
+        const val ACTION_UPDATE_SIZE = "com.nutnoi.action.UPDATE_OVERLAY_SIZE"
         const val PREFERENCES = "overlay_position"
         const val PREF_SIZE_DP = "size_dp"
         const val PREF_BLOCK_COMMANDS = "block_commands"
