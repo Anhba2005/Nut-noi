@@ -1,10 +1,9 @@
-package com.anhba.launcher
+package com.nutnoi
 
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.text.InputType
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.TextView
