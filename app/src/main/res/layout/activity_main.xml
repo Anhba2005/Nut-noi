@@ -35,18 +35,15 @@
             android:textColor="#2E7D32"
             android:textStyle="bold" />
 
-        <!-- Đã ép màu chữ ĐEN (#000000) và nền TRẮNG TINH để luôn nhìn rõ -->
         <EditText
             android:id="@+id/edtCmdGreen"
             android:layout_width="match_parent"
             android:layout_height="110dp"
             android:layout_marginTop="6dp"
-            android:background="#FFFFFF"
+            android:background="#1E1E1E"
             android:gravity="top|start"
             android:hint="Mời Nhập Shell (khi nút Xanh)..."
             android:padding="12dp"
-            android:textColor="#000000"
-            android:textColorHint="#888888"
             android:textSize="14sp" />
 
         <TextView
@@ -57,18 +54,15 @@
             android:textColor="#C62828"
             android:textStyle="bold" />
 
-        <!-- Đã ép màu chữ ĐEN (#000000) và nền TRẮNG TINH để luôn nhìn rõ -->
         <EditText
             android:id="@+id/edtCmdRed"
             android:layout_width="match_parent"
             android:layout_height="110dp"
             android:layout_marginTop="6dp"
-            android:background="#FFFFFF"
+            android:background="#1E1E1E"
             android:gravity="top|start"
             android:hint="Mời Nhập Shell (khi nút Đỏ)..."
             android:padding="12dp"
-            android:textColor="#000000"
-            android:textColorHint="#888888"
             android:textSize="14sp" />
 
         <Button
