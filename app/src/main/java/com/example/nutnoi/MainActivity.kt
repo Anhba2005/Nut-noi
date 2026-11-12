@@ -1,149 +1,99 @@
-package com.nutnoi
+package com.anhba.nutnoi
 
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
-import android.widget.SeekBar
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import com.google.android.material.textfield.TextInputEditText
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var toggleButton: Button
-    private lateinit var sizeLabel: TextView
-    private lateinit var sizeSeekBar: SeekBar
-    private lateinit var blockCommandsInput: TextInputEditText
-    private lateinit var unblockCommandsInput: TextInputEditText
-    private val rootCheckExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+
+    private lateinit var edtCmdGreen: EditText
+    private lateinit var edtCmdRed: EditText
+    private lateinit var tvRootStatus: TextView
+    private lateinit var tvSizeLabel: TextView
+    private lateinit var sbSize: SeekBar
+    private lateinit var btnSave: Button
+    private lateinit var btnToggleFloating: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        toggleButton = findViewById(R.id.btnToggleOverlay)
-        sizeLabel = findViewById(R.id.overlaySizeLabel)
-        blockCommandsInput = findViewById(R.id.blockCommandsInput)
-        unblockCommandsInput = findViewById(R.id.unblockCommandsInput)
+        edtCmdGreen = findViewById(R.id.edtCmdGreen)
+        edtCmdRed = findViewById(R.id.edtCmdRed)
+        tvRootStatus = findViewById(R.id.tvRootStatus)
+        tvSizeLabel = findViewById(R.id.tvSizeLabel)
+        sbSize = findViewById(R.id.sbSize)
+        btnSave = findViewById(R.id.btnSave)
+        btnToggleFloating = findViewById(R.id.btnToggleFloating)
 
-        loadFirewallCommands()
-        findViewById<Button>(R.id.btnSaveCommands).setOnClickListener { saveFirewallCommands() }
-        toggleButton.setOnClickListener { toggleOverlayService() }
-        setupSizeControl()
-        updateToggleButton()
-        checkRootStatus()
-    }
+        // KHÓA CỨNG MÀU CHỮ BẰNG CODE (Trị dứt điểm lỗi chữ tàng hình trên Xiaomi)
+        edtCmdGreen.setTextColor(Color.parseColor("#00FF66")) // Chữ xanh lá neon
+        edtCmdGreen.setHintTextColor(Color.parseColor("#888888"))
 
-    private fun loadFirewallCommands() {
-        val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
-        blockCommandsInput.setText(
-            prefs.getString(FloatingOverlayService.PREF_BLOCK_COMMANDS, Config.DEFAULT_BLOCK_COMMANDS)
-                ?: Config.DEFAULT_BLOCK_COMMANDS
-        )
-        unblockCommandsInput.setText(
-            prefs.getString(FloatingOverlayService.PREF_UNBLOCK_COMMANDS, Config.DEFAULT_UNBLOCK_COMMANDS)
-                ?: Config.DEFAULT_UNBLOCK_COMMANDS
-        )
-    }
+        edtCmdRed.setTextColor(Color.parseColor("#FF5252"))   // Chữ đỏ neon
+        edtCmdRed.setHintTextColor(Color.parseColor("#888888"))
 
-    /** Save the text exactly as entered; command validation/execution is not performed here. */
-    private fun saveFirewallCommands() {
-        getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE).edit()
-            .putString(FloatingOverlayService.PREF_BLOCK_COMMANDS, blockCommandsInput.text?.toString().orEmpty())
-            .putString(FloatingOverlayService.PREF_UNBLOCK_COMMANDS, unblockCommandsInput.text?.toString().orEmpty())
-            .apply()
-        Toast.makeText(this, R.string.commands_saved, Toast.LENGTH_SHORT).show()
-    }
+        val prefs = getSharedPreferences("NutNoiPrefs", Context.MODE_PRIVATE)
+        edtCmdGreen.setText(prefs.getString("CMD_GREEN", ""))
+        edtCmdRed.setText(prefs.getString("CMD_RED", ""))
+        val savedSize = prefs.getInt("BUTTON_SIZE", 72)
+        sbSize.progress = savedSize
+        tvSizeLabel.text = "Kích thước nút nổi: $savedSize dp"
 
-    private fun setupSizeControl() {
-        val prefs = getSharedPreferences(FloatingOverlayService.PREFERENCES, MODE_PRIVATE)
-        val initialSize = prefs.getInt(FloatingOverlayService.PREF_SIZE_DP, FloatingOverlayService.DEFAULT_SIZE_DP)
-            .coerceIn(FloatingOverlayService.MIN_SIZE_DP, FloatingOverlayService.MAX_SIZE_DP)
-        sizeSeekBar = findViewById(R.id.overlaySizeSeekBar)
-        sizeSeekBar.max = FloatingOverlayService.MAX_SIZE_DP - FloatingOverlayService.MIN_SIZE_DP
-        sizeSeekBar.progress = initialSize - FloatingOverlayService.MIN_SIZE_DP
-        updateSizeLabel(initialSize)
-        sizeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val sizeDp = FloatingOverlayService.MIN_SIZE_DP + progress
-                updateSizeLabel(sizeDp)
-                if (fromUser) {
-                    prefs.edit().putInt(FloatingOverlayService.PREF_SIZE_DP, sizeDp).apply()
-                    if (FloatingOverlayService.isRunning) startService(
-                        Intent(this@MainActivity, FloatingOverlayService::class.java)
-                            .setAction(FloatingOverlayService.ACTION_UPDATE_SIZE)
-                            .putExtra(FloatingOverlayService.EXTRA_SIZE_DP, sizeDp)
-                    )
-                }
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
-            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
-        })
-    }
-
-    private fun toggleOverlayService() {
-        if (!Settings.canDrawOverlays(this)) {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-            return
-        }
-        val intent = Intent(this, FloatingOverlayService::class.java)
-        if (FloatingOverlayService.isRunning) stopService(intent)
-        else ContextCompat.startForegroundService(this, intent)
-        updateToggleButton()
-    }
-
-    private fun checkRootStatus() {
-        val rootStatus = findViewById<TextView>(R.id.rootStatus)
-        rootStatus.setText(R.string.root_status_checking)
-        rootCheckExecutor.execute {
-            val hasRoot = try {
-                val process = ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start()
-                if (!process.waitFor(ROOT_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                    process.destroyForcibly()
-                    false
-                } else {
-                    val output = process.inputStream.bufferedReader().use { it.readText() }
-                    process.exitValue() == 0 && output.contains("uid=0")
-                }
-            } catch (_: Exception) {
-                false
-            }
+        // Kiểm tra quyền Root
+        Thread {
+            val hasRoot = ShellUtils.isRootAvailable()
             runOnUiThread {
-                if (!isFinishing) rootStatus.setText(
-                    if (hasRoot) R.string.root_status_available else R.string.root_status_unavailable
-                )
+                tvRootStatus.text = if (hasRoot) "Trạng thái root: Đã cấp quyền." else "Trạng thái root: Chưa có quyền Root!"
+            }
+        }.start()
+
+        sbSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(p0: SeekBar?, progress: Int, p2: Boolean) {
+                val size = if (progress < 40) 40 else progress
+                tvSizeLabel.text = "Kích thước nút nổi: $size dp"
+            }
+            override fun onStartTrackingTouch(p0: SeekBar?) {}
+            override fun onStopTrackingTouch(p0: SeekBar?) {}
+        })
+
+        btnSave.setOnClickListener {
+            val size = if (sbSize.progress < 40) 40 else sbSize.progress
+            prefs.edit()
+                .putString("CMD_GREEN", edtCmdGreen.text.toString())
+                .putString("CMD_RED", edtCmdRed.text.toString())
+                .putInt("BUTTON_SIZE", size)
+                .apply()
+            Toast.makeText(this, "Đã lưu cấu hình thành công!", Toast.LENGTH_SHORT).show()
+        }
+
+        btnToggleFloating.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+                startActivity(intent)
+                Toast.makeText(this, "Vui lòng cấp quyền hiển thị trên các ứng dụng khác", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            val serviceIntent = Intent(this, FloatingButtonService::class.java)
+            if (FloatingButtonService.isRunning) {
+                stopService(serviceIntent)
+                btnToggleFloating.text = "Bật nút nổi"
+            } else {
+                startService(serviceIntent)
+                btnToggleFloating.text = "Tắt nút nổi"
             }
         }
-    }
-
-    private fun updateToggleButton() {
-        if (::toggleButton.isInitialized) toggleButton.setText(
-            if (FloatingOverlayService.isRunning) R.string.disable_button else R.string.enable_button
-        )
-    }
-
-    private fun updateSizeLabel(sizeDp: Int) {
-        sizeLabel.text = getString(R.string.overlay_size_value, sizeDp)
     }
 
     override fun onResume() {
         super.onResume()
-        updateToggleButton()
-    }
-
-    override fun onDestroy() {
-        rootCheckExecutor.shutdownNow()
-        super.onDestroy()
-    }
-
-    companion object {
-        private const val ROOT_CHECK_TIMEOUT_SECONDS = 5L
+        btnToggleFloating.text = if (FloatingButtonService.isRunning) "Tắt nút nổi" else "Bật nút nổi"
     }
 }
